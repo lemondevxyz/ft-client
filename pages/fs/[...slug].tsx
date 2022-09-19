@@ -13,7 +13,7 @@ export interface FileProps {
   showTime?: boolean,
   onClick?: () => void,
   checked?: FsCheckbox,
-  setChecked?: (name : string, val : boolean) => void,
+  setChecked?: (val : FsCheckbox) => void,
 }
 
 export function TrimForwardSlashes(str : string) : string {
@@ -59,27 +59,36 @@ export function FileComponentDate(val : FsOsFileInfo) : string {
   const d = new Date();
   d.setTime(Date.parse(val.modTime))
 
-  return val.modTime !== undefined && val.modTime.length !== 0 ? (d.toISOString().slice(0, 10) + " " + d.toISOString().slice(11, 19)) : ""
+  const months = ["January","February","March","April","May","June","July","August","September","October","November","December"]
+  let day = d.getDate().toString();
+  if(day.length == 1) day = " " + day;
+
+  const month = months[d.getMonth()].slice(0, 3);
+
+  if(d.getFullYear() == new Date().getFullYear())
+    // Sep 19 19:14
+    // Sep  9 19:14
+    return `${month} ${day} ${d.toTimeString().slice(0, 5)}`;
+  // Sep 19  2022
+  // Sep  9  2022
+  return `${month} ${day}  ${d.getFullYear()}`
 }
 
 export function FileComponent(val: FileProps) {
-  if(val.checked !== undefined)
-    useEffect(() => {}, [val.checked]);
-
   return <tr className={`p-1 font-mono w-full`}>
+    {val.setChecked !== undefined &&
      <td className="w-8">
-       {val.setChecked && val.checked &&
-        <input className="cursor-pointer" type="checkbox" checked={val.checked[val.f.path]}
-               onChange={ (e) => {
-                 val.setChecked(val.f.path, !(val.checked[val.f.path] || false));
-               }} />}
-     </td>
+       {val.f.name !== ".." && <input type="checkbox" checked={val.checked.indexOf(val.f.path) >= 0} onChange={(e) => {
+         const index = val.checked.indexOf(val.f.path);
+         val.setChecked(index >= 0 ? val.checked.filter((v) => v != val.f.path) : val.checked.concat(val.f.path));
+       }} />}
+     </td>}
     <td className={`flex items-center my-2 w-full select-none ${IsDirectory(val.f) ? "cursor-pointer" : "cursor-default"}`}
         onClick={ () => val.onClick !== undefined && val.onClick() }>
       <FileComponentIcon {...val.f} />
       <FileComponentFilename {...val.f} />
     </td>
-    <td>{val.showTime && <p className="ml-auto mr-2">{ FileComponentDate(val.f) }</p>}</td>
+    <td>{val.showTime && <pre className="ml-auto mr-2">{ FileComponentDate(val.f) }</pre>}</td>
     <td>{val.f.size > 0 && HumanSize(val.f.size)}</td>
   </tr>
 }
@@ -154,13 +163,14 @@ export interface FsProps {
   search: string,
   showParent: boolean,
   checked?: FsCheckbox,
-  setChecked?: (path : string, val : boolean) => void,
+  setChecked?: (arg0: FsCheckbox) => void,
 }
 
 export function FsComponent({pwd, setPwd, search, showParent, checked, setChecked} : FsProps) {
   const [ fileInfo, setFileInfo ] = useState<FsOsFileInfo[]>([]);
   const [ oldPwd, setOldPwd ] = useState(pwd);
   const [ allChecked, setAllChecked ] = useState(false);
+  const [ ready, setReady ] = useState(false);
 
   useEffect(() => {
     const oldFiles = JSON.stringify(fileInfo === null ? [] : fileInfo);
@@ -169,6 +179,7 @@ export function FsComponent({pwd, setPwd, search, showParent, checked, setChecke
     }).then((val : FsReadDirValue) => {
       if(val.files === undefined) setFileInfo([])
       else setFileInfo(val.files.sort(SortByDirectory));
+      setReady(true);
       setOldPwd(pwd);
     }).catch((e) => {
       setFileInfo(JSON.parse(oldFiles))
@@ -179,30 +190,37 @@ export function FsComponent({pwd, setPwd, search, showParent, checked, setChecke
     });
   }, [pwd]);
 
-
   useEffect(() => {
-    if(checked) setAllChecked(!(Object.values(checked).filter((v) => !v).length === 0));
-  }, [checked]);
+    if(!ready) return;
+    setAllChecked(checked.length === fileInfo.length);
+  }, [checked, ready]);
+
+  const allCheckedArr : string[] = fileInfo.map((val : FsOsFileInfo) => val.path);
 
   return <table className="table-fixed w-full">
     <thead className="h-16">
       <tr>
-        {setChecked && checked &&
+        {setChecked &&
         <td className="w-8">
           <input type="checkbox" checked={allChecked} onChange={(e) =>
-            fileInfo.forEach((val: FsOsFileInfo) => setChecked(val.path, !allChecked))} />
+            fileInfo.forEach((val: FsOsFileInfo) => {
+              const arr = !allChecked ? allCheckedArr : [];
+              setChecked(arr);
+              setAllChecked(!allChecked);
+          })} />
         </td>}
-        <td>Name</td>
-        <td className="w-64">Last Modification</td>
+        <td><div className="resize-x w-auto h-auto">Name</div></td>
+        <td className="w-48">Last Modification</td>
         <td className="w-32">Size</td>
       </tr>
     </thead>
     <tbody>
-      {showParent && <FileComponent {...{f: {name: "..", modTime: "", mode: DirMode, size: -1, path: ""}, onClick: () => setPwd(AllButLast(Path(pwd)).join("/") || "/")}} />}
+      {showParent && <FileComponent {...{f: {name: "..", modTime: "", mode: DirMode, size: -1, path: ""}, onClick: () => setPwd(AllButLast(Path(pwd)).join("/") || "/"), setChecked}} />}
       {fileInfo !== null && fileInfo !== undefined && fileInfo.filter((x) =>
         search.length > 0 ? x.name.includes(search) : true
       ).map((x : FsOsFileInfo, i : number) => {
         const path = TrimForwardSlashes(pwd+"/"+x.name)
+
         const obj : FileProps = {
           f: x,
           showTime: true,
@@ -255,16 +273,15 @@ export function FsNavigators({ pwd, setPwd } : { pwd: string, setPwd: (pwd : str
   );
 }
 
-export interface FsCheckbox {
-  [path: string]: boolean
-}
+export type FsCheckbox = string[];
 
 export default function Fs() {
   const router = useRouter();
-  const [ pwd, setPwd ] = useState<string>("/");
+  const [ pwd, setPwd ] = useState<string>(TrimForwardSlashes("/"+(router.query.slug as string[] || [""]).join("/")));
   const [ search, setSearch ] = useState<string>("");
   const [ treeFileInfo, setTreeFileInfo ] = useState<Tree>();
-  const [ checked, setChecked ] = useState<FsCheckbox>({});
+  const [ checked, setChecked ] = useState<FsCheckbox>([]);
+  const [ ready, setReady ]= useState(false);
 
   useEffect(() => {
     FsReadDir("localhost:8080", {
@@ -277,6 +294,13 @@ export default function Fs() {
       setTreeFileInfo(obj)
     })
   }, []);
+
+  useEffect(() => {
+    // run once the router has initialized
+    if(!router.isReady || ready) return;
+    setPwd(TrimForwardSlashes("/"+(router.query.slug as string[] || [""].join("/"))));
+    setReady(true);
+  }, [router, ready]);
 
   const pwdSetter = (pwd : string) => {
     let path = pwd.replace("/", "/fs/");
@@ -297,10 +321,7 @@ export default function Fs() {
     search: search,
     showParent: pwd.length > 1,
     checked: checked,
-    setChecked: (path : string, val : boolean) => {
-      let obj = checked;
-      obj[path] = val;
-
+    setChecked: (obj : FsCheckbox) => {
       setChecked(obj);
     },
   };
@@ -314,7 +335,7 @@ export default function Fs() {
         <h1 className="text-3xl text-black font-bold mb-2">Filesystem tree</h1>
         {RenderTree(pwdSetter, setTreeFileInfo, treeFileInfo, "/")}
       </div>
-      <div className="ml-8 mr-2">
+      <div className="ml-8 mr-2 min-w-content md:min-w-[750px]">
         <div className="my-2 flex justify-end">
           {Button({ Text: "Go to Path", Icon: "M13 19C13 19.34 13.04 19.67 13.09 20H4C2.9 20 2 19.11 2 18V6C2 4.89 2.89 4 4 4H10L12 6H20C21.1 6 22 6.89 22 8V13.81C21.39 13.46 20.72 13.22 20 13.09V8H4V18H13.09C13.04 18.33 13 18.66 13 19M23 19L20 16V18H16V20H20V22L23 19Z", Click: goToPath })}
           {Button({ Text: "Refresh", Icon: "M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z", Click: () => pwdSetter(pwd)})}
@@ -327,8 +348,8 @@ export default function Fs() {
             <FsNavigators {...{pwd: pwd, setPwd: pwdSetter}} />
           </div>
         </div>
-        <div className="text-xl">
-          <FsComponent {...fs} />
+        <div className="text-md sm:text-lg md:text-xl">
+          {ready && <FsComponent {...fs} />}
         </div>
       </div>
     </div>
