@@ -97,7 +97,7 @@ export interface Tree {
   [name: string]: FsOsFileInfo[],
 }
 
-export function RenderTree(setPwd : (pwd : string) => void, s : Dispatch<SetStateAction<Tree|undefined>>, m : Tree|undefined, path : string) : ReactElement[] {
+export function FsTree(setPwd : (pwd : string) => void, s : Dispatch<SetStateAction<Tree|undefined>>, m : Tree|undefined, path : string) : ReactElement[] {
   if(m === undefined) return []
 
   let arr : ReactElement[] = [];
@@ -111,7 +111,7 @@ export function RenderTree(setPwd : (pwd : string) => void, s : Dispatch<SetStat
       let fileInfo = m[localPath]
       let later : ReactElement[] = [];
       if(fileInfo !== undefined) {
-        later = later.concat(<div className="ml-1" key={"children:"+localPath+"/"}>{RenderTree(setPwd, s, m, localPath)}</div>)
+        later = later.concat(<div className="ml-1" key={"children:"+localPath+"/"}>{FsTree(setPwd, s, m, localPath)}</div>)
       }
 
       arr = arr.concat(
@@ -277,11 +277,13 @@ export type FsCheckbox = string[];
 
 export default function Fs() {
   const router = useRouter();
+  // used by FsComponent
   const [ pwd, setPwd ] = useState<string>(TrimForwardSlashes("/"+(router.query.slug as string[] || [""]).join("/")));
   const [ search, setSearch ] = useState<string>("");
-  const [ treeFileInfo, setTreeFileInfo ] = useState<Tree>();
   const [ checked, setChecked ] = useState<FsCheckbox>([]);
   const [ ready, setReady ]= useState(false);
+  // used by FsTree
+  const [ treeFileInfo, setTreeFileInfo ] = useState<Tree>();
 
   useEffect(() => {
     FsReadDir("localhost:8080", {
@@ -331,9 +333,11 @@ export default function Fs() {
       <title>ft - filesystem</title>
     </Head>
     <div className="flex">
+      <div>
+      </div>
       <div className="hidden md:block px-4 pt-2 text-md bg-yellow-200 min-h-screen" style={{minWidth: "300px"}}>
         <h1 className="text-3xl text-black font-bold mb-2">Filesystem tree</h1>
-        {RenderTree(pwdSetter, setTreeFileInfo, treeFileInfo, "/")}
+        {FsTree(pwdSetter, setTreeFileInfo, treeFileInfo, "/")}
       </div>
       <div className="ml-8 mr-2 min-w-content md:min-w-[750px]">
         <div className="my-2 flex justify-end">

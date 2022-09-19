@@ -9,6 +9,7 @@ module.exports = {
       colors: {
         'dark-border': 'rgba(0, 0, 0, 0.12)',
         'light-border': 'rgba(255, 255, 255, 0.12)',
+        'dark': '#151515',
       }
     },
   },
