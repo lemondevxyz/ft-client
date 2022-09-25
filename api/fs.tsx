@@ -5,6 +5,7 @@ export interface FsOsFileInfo {
   name: string,
   size: number,
   path: string,
+  absPath: string,
   mode: number,
   modTime: string,
 }

@@ -103,21 +103,35 @@ function sum(arr : number[]) : number {
 export function OperationComponent(props: OperationProps) {
     const [ showFiles, setShowFiles ] = useState(false);
     const [ showLog, setShowLog ] = useState(false);
-    const [ opMaxValue, _ ] = useState(sum(props.src.map((val : FsOsFileInfo) => val.size)));
+    const size = 256;
 
-    const size = 256
-    const pnew = {
-        currentValue: 505,
-        maxValue: 1052,
-        size: size,
-        class: "w-full",
+    const generateOpProgress = () => {
+        const opMaxValue = sum(props.src.slice(0, props.index).map((val : FsOsFileInfo) => val.size));
+
+        return {
+            currentValue: opMaxValue+props.progress,
+            maxValue: props.size,
+            size: size,
+            class: "w-full",
+        }
     }
-    const data = {p: {
-        currentValue: 0,
-        maxValue: opMaxValue,
-        size: size,
-        class: "w-full",
-    } as ProgressBar, text: `${props.index}/${props.src.length}`};
+
+    const generateFileProgress = () => {
+        return {
+            currentValue: props.progress || -1,
+            maxValue: (props.src[props.index] || {size: -1}).size,
+            size: size,
+            class: "w-full",
+        }
+    }
+
+    const [ fileProgress, setFileProgress ] = useState<ProgressBar>(generateFileProgress());
+    const [ opProgress, setOpProgress ] = useState<ProgressBar>(generateOpProgress());
+
+    useEffect(() => {
+        setFileProgress(generateFileProgress());
+        setOpProgress(generateOpProgress());
+    }, [props]);
 
     let src : FsOsFileInfo|undefined;
     if(props.index !== -1 && props.index < props.src.length)
@@ -155,11 +169,11 @@ export function OperationComponent(props: OperationProps) {
             </div>
             {/* Current File Progress */}
             <div className="m-2">
-                <Progress {...pnew} />
+                <Progress {...fileProgress} />
             </div>
             {/* Total */}
             <div className="mx-2 mb-2">
-                <Progress {...data.p} />
+                <Progress {...opProgress} />
             </div>
             {/* either showLog or showFiles but not both */}
             {(showLog || showFiles) && ((showLog && showFiles) == false) && <code className="h-32 mt-2 mb-4 mx-auto w-11/12 font-monospace text-light-head overflow-y-auto" style={{backgroundColor: "rgba(0, 0, 0, 0.5)"}}><pre className="p-2">

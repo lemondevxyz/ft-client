@@ -38,6 +38,7 @@ export interface OperationObject {
     size: number
     log: string
     started: Date
+    progress: number
 }
 
 export interface EventOperation {

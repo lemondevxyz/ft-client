@@ -2,9 +2,9 @@ import '../styles/globals.css'
 import type { AppProps } from 'next/app'
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { EventOperationProgress, EventOperationStatus, EventOperationError, OperationObject, OperationSize, OperationSizeValue } from '../api/operation';
+import { EventOperationProgress, EventOperationStatus, OperationObject, OperationSize, OperationSizeValue } from '../api/operation';
 import EventEmitter from 'events';
-import { EventFsMove } from '../api/fs';
+import { EventFsMove, HumanSize } from '../api/fs';
 
 export const globalHost = "localhost:8080"
 
@@ -22,29 +22,9 @@ export interface PageProps {
 function MyApp({ Component, pageProps }: AppProps) {
   const router = useRouter();
   const [ sseId, setId ] = useState("");
-  const [ ops, setOps ] = useState<Map<OperationObject>>({});
-  const [ progress, setProgress ] = useState<Map<number>>({});
+  const [ sseOps, setOps ] = useState<Map<OperationObject>>({});
   const [ init, setInit ] = useState(true);
   const [ ev, _ ] = useState(new EventEmitter());
-
-  const opsSetter = (val : Map<OperationObject>) => {
-    setOps(val);
-    ev.emit("ops");
-  }
-
-  const progressSetter = (val : Map<number>) => {
-    setProgress(val)
-    ev.emit("progress");
-  }
-
-  const opSizeCallback = (op : OperationObject) =>
-    (e: OperationSizeValue) => {
-      op.size = e.size;
-      ops[op.id] = op;
-      console.log(op, ops)
-
-      opsSetter(ops);
-    }
 
   useEffect(() => { // eslint-disable-line
     if(!router.isReady) return;
@@ -55,6 +35,12 @@ function MyApp({ Component, pageProps }: AppProps) {
         new Notification("Now you can be informed on the latest updates about the operations and file system");
       });
 
+    let ops : Map<OperationObject> = {};
+    const opsSetter = (val : Map<OperationObject>) => {
+      setOps(val);
+      ops = val;
+    }
+
     setInit(false);
 
     const sse = new EventSource("http://localhost:8080/sse");
@@ -63,66 +49,67 @@ function MyApp({ Component, pageProps }: AppProps) {
     sse.addEventListener("id", (e : MessageEvent<string>) => {
       setId(e.data);
       id = e.data;
-      console.log("data has been set", e.data, id);
     });
 
     sse.addEventListener("operation-all", function(e : MessageEvent<string>) {
       let map : Map<OperationObject> = JSON.parse(e.data);
       //console.log("here", map);
+      const myOps = {...ops};
       Object.values(map).forEach((op : OperationObject) => {
         op.started = new Date();
-        console.log("operation/all", id, op.id)
-        OperationSize({
-          host: globalHost,
-          id: id,
-        }, {id: op.id}).then(opSizeCallback(op))
+
+        myOps[op.id] = {...op};
       });
 
-      ev.emit("op")
+      opsSetter(myOps);
+      new Notification(`Found ${Object.keys(myOps).length} operations`)
     })
 
-    sse.addEventListener("operation-new", function(e : MessageEvent<string>) {
+    sse.addEventListener("operation-new", (e : MessageEvent<string>) => {
       let op : OperationObject = JSON.parse(e.data);
       op.started = new Date();
 
-      console.log("operation/new", id, op.id)
-      OperationSize({
-        host: globalHost,
-        id: id,
-      }, {id: op.id}).then(opSizeCallback(op));
-      ev.emit("op")
-    })
+      let myOps = {...ops}
+      myOps[op.id] = op;
+
+      opsSetter(myOps);
+
+      new Notification(`New Operation with ${op.src.length} items with ${HumanSize(op.size)}`)
+    });
+    sse.addEventListener("operation-update", (e : MessageEvent<string>) => {
+        let op : OperationObject = JSON.parse(e.data);
+      op.started = new Date();
+
+      let myOps = {...ops}
+      myOps[op.id] = op;
+
+      opsSetter(myOps);
+
+      new Notification(`Operation ${op.id} changed`);
+    });
 
     sse.addEventListener("operation-done", function(e : MessageEvent<string>) {
-      delete ops[e.data];
-      opsSetter(ops);
-
-      ev.emit("op");
+      let myOps = {...ops}
+      delete myOps[e.data];
+      opsSetter(myOps);
     })
 
     sse.addEventListener("operation-error", function(e : MessageEvent<string>) {
       console.log("op-err", e.data)
     });
 
-    sse.addEventListener("operation-status", function(e : MessageEvent<string>) {
-      const ev : EventOperationStatus = JSON.parse(e.data);
-
-      if(ops !== undefined && ops[ev.id] !== undefined) {
-        ops[ev.id].status = ev.status
-        opsSetter(ops);
-      }
-    })
-
     sse.addEventListener("operation-progress", function(e : MessageEvent<string>) {
       const ev : EventOperationProgress = JSON.parse(e.data);
 
-      console.log(ops, progress, ev)
       if(ops !== undefined && ops[ev.id] !== undefined) {
-        ops[ev.id].index = ev.index;
-        progress[ev.id] = ev.size;
+        const myOps = {...ops}
+        const myOp = {...myOps[ev.id]}
+        myOp.index = ev.index;
+        myOp.progress = ev.size;
 
-        progressSetter(progress);
-        opsSetter(ops);
+        myOps[ev.id] = myOp;
+
+        opsSetter(myOps);
       }
     });
 
@@ -148,8 +135,7 @@ function MyApp({ Component, pageProps }: AppProps) {
 
   pageProps = Object.assign(pageProps, {
     id: sseId,
-    ops,
-    progress,
+    ops: sseOps,
     ev,
     host: globalHost,
   });

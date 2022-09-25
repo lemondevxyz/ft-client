@@ -139,7 +139,7 @@ export default function Fs(val : PageProps) {
   const [dirDialog, setDirDialog] = useState("null");
   const dirDialogComponent = BrowserDirectoryDialog({
     options: reqOptions,
-    base: "/tmp",
+    base: "/home/tim/setup/win10/",
     dialogFn: (path: string) => {
       setDirDialog(path);
 
@@ -165,13 +165,12 @@ export default function Fs(val : PageProps) {
         }).then((e : Response) => {
           return e.json()
         }).then((e : OperationGenericData) => {
-          console.log(e)
           OperationStart(reqOptions, {
             id: e.id,
           });
         });
       else {
-        let paths = op.src.map((val : FsOsFileInfo) : string => val.path);
+        let paths = op.src.map((val : FsOsFileInfo) : string => val.absPath);
         paths = paths.concat(checked);
 
         OperationSetSources(reqOptions, {
@@ -187,6 +186,10 @@ export default function Fs(val : PageProps) {
   const copy = () => {
     setDirDialog("");
   }
+
+  useEffect(() => {
+    console.log("here", val.ops);
+  }, [val.ops]);
 
   return <div>
     <Head>
@@ -226,7 +229,8 @@ export default function Fs(val : PageProps) {
           </div>
         </div>
       </div>
-      <div className={`fixed top-0 right-0 w-full h-full flex justify-end ${showOperations ? "block" : "hidden"}`} style={{backgroundColor: "rgba(0, 0, 0, 0.5)"}} onClick={() => setShowOperations(false)}>
+      <div className={`fixed top-0 right-0 w-full h-full flex justify-end ${showOperations ? "block" : "hidden"}`} style={{backgroundColor: "rgba(0, 0, 0, 0.5)"}}
+      onClick={(e) => e.target === e.currentTarget && setShowOperations(false)}>
         <div className="w-11/12 md:w-3/4 lg:w-2/3 xl:w-1/2 h-full bg-light shadow">
           <div className="py-24 w-11/12 mx-auto">
             {Object.values(val.ops).map((op : OperationObject, i : number) : ReactElement => {
