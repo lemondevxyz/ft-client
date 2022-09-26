@@ -119,7 +119,7 @@ export function Browser(obj : BrowserProps) {
   }, [ready, refresh]); // eslint-disable-line
 
   useEffect(() => {
-    if(obj.checked !== undefined || !ready) return;
+    if(obj.checked === undefined || !ready) return;
     setAllChecked((obj.checked || []).length === fileInfo.length);
   }, [obj.checked, ready]); // eslint-disable-line
 
@@ -142,7 +142,7 @@ export function Browser(obj : BrowserProps) {
       </tr>
     </thead>
     <tbody>
-      {obj.showParent && <FileComponent {...{f: {name: "..", modTime: "", mode: DirMode, size: -1, path: ""}, onClick: () => obj.setPwd(obj.pwd.split("/").slice(0, -1).join("/") || "/"), setChecked: obj.setChecked}} />}
+      {obj.showParent && <FileComponent {...{f: {name: "..", modTime: "", mode: DirMode, size: -1, path: "", absPath: ""}, onClick: () => obj.setPwd(obj.pwd.split("/").slice(0, -1).join("/") || "/"), setChecked: obj.setChecked}} />}
       {fileInfo !== null && fileInfo !== undefined && fileInfo.filter((x) =>
         obj.filter ? obj.filter(x) : true
       ).map((x : FsOsFileInfo, i : number) => {
@@ -262,6 +262,7 @@ export interface FileActionsProps {
   checked: string[]
   setChecked: (val : string[]) => void
   copy: () => void
+  copyPaths: () => void
   options: RequestOptions
 }
 
@@ -273,15 +274,7 @@ const iconRemove = "M9,3V4H4V6H5V19A2,2 0 0,0 7,21H17A2,2 0 0,0 19,19V6H20V4H15V
 
 export function FileActions(val : FileActionsProps) {
     const copy = val.copy;
-    const copyPaths = () => {
-        var input = document.createElement('textarea');
-        input.setAttribute('value', val.checked.join("\n"));
-        document.body.appendChild(input);
-        input.select();
-        document.execCommand('copy');
-        document.body.removeChild(input);
-        val.setChecked([]);
-    }
+    const copyPaths = val.copyPaths
     const remove = () => {
         val.checked.forEach((v : string) => {
             FsRemove(val.options, {

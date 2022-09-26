@@ -19,7 +19,7 @@ export function Dialog(val : DialogInterface) {
     <div className="w-full h-full absolute top-0 left-0" style={{backgroundColor: "rgba(0, 0, 0, 0.5)"}} onClick={ () => val.close() }></div>
     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 h-2/3 bg-yellow-200 rounded-xl flex flex-col" style={{maxWidth: "900px", width: "90%"}}>
       <h1 className="text-2xl font-bold text-center my-2 pb-2" style={{borderBottom: "1px solid rgba(0, 0, 0, 0.12)"}}>{val.title}</h1>
-      <div className="mx-4 my-2 pb-2 flex-grow overflow-auto" style={{borderBottom: "1px solid rgba(0, 0, 0, 0.12)"}}>
+      <div className="mx-4 my-2 pb-2 flex-grow overflow-auto" style={val.buttons.length > 0 ? {borderBottom: "1px solid rgba(0, 0, 0, 0.12)"} : undefined}>
         {val.child}
       </div>
       {val.buttons.length > 0 &&

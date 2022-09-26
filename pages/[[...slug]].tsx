@@ -10,6 +10,7 @@ import { globalHost, Map, PageProps } from './_app';
 import { OperationGenericData, OperationNew, OperationObject, OperationSetSources, OperationStart } from '../api/operation';
 import { OperationComponent } from '../components/operation';
 import { RequestOptions } from '../api/generic';
+import { Dialog } from '../components/dialog';
 
 export function Path(val : string) : string[] {
   return val.split("/");
@@ -36,11 +37,13 @@ export default function Fs(val : PageProps) {
   const [ ready, setReady ]= useState(false);
   // used by FsTree
   const [ treeFileInfo, setTreeFileInfo ] = useState<TreeMap>();
+  // used by this component
   const [ showOperations, setShowOperations ] = useState(false);
   const [ reqOptions, setReqOptions ] = useState<RequestOptions>({
     host: "localhost:8080",
     id: val.id
   });
+  const [ showCopyPaths, setShowCopyPaths ] = useState(false);
 
   useEffect(() => {
     if(!router.isReady || ready) return
@@ -187,18 +190,34 @@ export default function Fs(val : PageProps) {
     setDirDialog("");
   }
 
+  const copyPaths = () => {
+    setShowCopyPaths(true);
+  }
+
   useEffect(() => {
     console.log("here", val.ops);
   }, [val.ops]);
+
+  const pathTextarea = () => <textarea className="p-4 h-3/4 w-full resize-none" style={{backgroundColor: "rgba(0, 0, 0, 0.2)"}} value={checked.join("\n")} onClick={(e) => {
+    e.preventDefault();
+    e.currentTarget.focus();
+    e.currentTarget.setSelectionRange(0, e.currentTarget.value.length); console.log(e.currentTarget.innerText.length)}}></textarea>;
 
   return <div>
     <Head>
       <title>ft - filesystem</title>
     </Head>
     <div className="flex text-dark-head relative">
+      {Dialog({
+        buttons: [],
+        title: "Copy Path",
+        show: showCopyPaths,
+        close: () => setShowCopyPaths(!showCopyPaths),
+        child: pathTextarea(),
+      })}
       {/*showOperations && <OperationDialog {...opDialogProps} />*/}
       {dirDialogComponent}
-      {checked.length > 0 && FileActions({checked, setChecked, copy, options: reqOptions}) }
+      {checked.length > 0 && FileActions({checked, setChecked, copy, copyPaths, options: reqOptions}) }
       <div className="hidden md:block px-4 pt-2 text-md bg-less-dark min-h-screen text-light-head" style={{minWidth: "300px"}}>
         <h1 className="text-3xl font-bold mb-2">Filesystem tree</h1>
         {Tree({path: "/", setPwd: pwdSetter, tree: treeFileInfo, setTree: setTreeFileInfo, options: reqOptions})}
