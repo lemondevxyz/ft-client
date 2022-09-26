@@ -5,7 +5,7 @@ ft-client is a client for the [ft](https://github.com/lemondevxyz/ft) project.
 - [x] Filesystem view
 - [x] Search functionality within filesystem view
 - [x] Ability to remove files
-- [] Ability to copy paths
+- [x] Ability to copy paths
 - [x] Ability to copy files via creating an operation
 - [x] Tree view
 - [x] Responding to live updates about fs
