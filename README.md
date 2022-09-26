@@ -14,6 +14,11 @@ ft-client is a client for the [ft](https://github.com/lemondevxyz/ft) project.
 - [x] Going to path manually without inducing a page refresh
 - [x] Refreshing a directory in both tree & filesystem views
 - [x] Responsive Design
-- [] Silky smooth animation for dialogs and file actions
 - [x] Operations view
-- [] Operation buttons functionality
+- [x] Operation buttons functionality
+- [x] Attach operation logs to operations
+- [] [Skip, Replace, Create New File] dialog when file exists
+- [] Operation Error handling
+- [] Make a user-friendly way to tell user about request failures
+- [] Verify tool in File actions
+- [] Silky smooth animation for dialogs and file actions
