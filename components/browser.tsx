@@ -1,6 +1,6 @@
 import EventEmitter from 'events';
 import { useEffect, useState, ReactElement } from 'react';
-import { FsReadDir, FsReadDirValue, FsOsFileInfo, IsDirectory, HumanDate, HumanSize, SortByDirectory, DirMode, FixPath, FsRemove } from '../api/fs'
+import { FsReadDir, FsReadDirValue, FsOsFileInfo, IsDirectory, HumanDate, HumanSize, SortByDirectory, DirMode, FixPath, FsRemove, FsVerify } from '../api/fs'
 import { RequestOptions } from '../api/generic';
 import { IconTextButton } from './button';
 import { Dialog } from './dialog';
@@ -272,36 +272,50 @@ const iconClipboard = "M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2
 
 const iconRemove = "M9,3V4H4V6H5V19A2,2 0 0,0 7,21H17A2,2 0 0,0 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z"
 
+const iconVerify = "M23,12L20.56,9.22L20.9,5.54L17.29,4.72L15.4,1.54L12,3L8.6,1.54L6.71,4.72L3.1,5.53L3.44,9.21L1,12L3.44,14.78L3.1,18.47L6.71,19.29L8.6,22.47L12,21L15.4,22.46L17.29,19.28L20.9,18.46L20.56,14.78L23,12M10,17L6,13L7.41,11.59L10,14.17L16.59,7.58L18,9L10,17Z";
+
 export function FileActions(val : FileActionsProps) {
-    const copy = val.copy;
-    const copyPaths = val.copyPaths
-    const remove = () => {
-        val.checked.forEach((v : string) => {
-            FsRemove(val.options, {
-                Name: v
-            })
-        })
+  const copy = val.copy;
+  const copyPaths = val.copyPaths
+  const remove = () => {
+    val.checked.forEach((v : string) => {
+      FsRemove(val.options, {
+        Name: v
+      })
+    })
 
-        val.setChecked([]);
-    }
+    val.setChecked([]);
+  }
+  const verify = () => {
+    const src = val.checked[0];
+    const dst = val.checked[1];
 
-    return <div className={`fixed top-0 left-0 w-full h-auto py-4 md:py-none md:h-16 bg-dark animate-fadeIn flex items-center text-sm`}>
-        <div className="flex flex-nowrap overflow-x-auto mr-2 items-center">
-            <div className="ml-2 mr-1 shrink-0">
-                <IconTextButton {...{dark: true, text: "Copy", click: copy, icon: iconCopy}} />
-            </div>
-            <div className="mr-1 shrink-0">
-                <IconTextButton {...{dark: true, text: "Copy Paths", click: copyPaths, icon: iconClipboard}} />
-            </div>
-            <div className="mr-1 shrink-0">
-                <IconTextButton {...{dark: true, text: "Remove", click: remove, icon: iconRemove}} />
-            </div>
-        </div>
-        <div className="ml-auto flex">
-            <p className="ml-2 text-white mr-3 font-bold text-2xl font-mono">{`${val.checked.length}`}</p>
-            <div className="pl-2 text-white text-3xl flex items-center justify-center mr-2 cursor-pointer border-l border-light-border">
-                <svg viewBox="0 0 24 24" style={{fill: 'white', width: '1em', height: '1em'}} onClick={() => val.setChecked([])}><path d={iconClose} /></svg>
-            </div>
-        </div>
+    FsVerify(val.options, { Src: src, Dst: dst }).then(() => {
+      new Notification("the two files are the same")
+    }).catch(() => new Notification("files do not match"));
+  }
+
+  return <div className={`fixed top-0 left-0 w-full h-auto py-4 md:py-none md:h-16 bg-dark animate-fadeIn flex items-center text-sm`}>
+    <div className="flex flex-nowrap overflow-x-auto mr-2 items-center">
+      <div className="ml-2 mr-1 shrink-0">
+        <IconTextButton {...{dark: true, text: "Copy", click: copy, icon: iconCopy}} />
+      </div>
+      <div className="mr-1 shrink-0">
+        <IconTextButton {...{dark: true, text: "Copy Paths", click: copyPaths, icon: iconClipboard}} />
+      </div>
+      {val.checked.length === 2 &&
+       <div className="mr-1 shrink-0">
+         <IconTextButton {...{dark: true, text: "Verify", click: verify, icon: iconVerify}} />
+       </div>}
+      <div className="mr-1 shrink-0">
+        <IconTextButton {...{dark: true, text: "Remove", click: remove, icon: iconRemove}} />
+      </div>
     </div>
+    <div className="ml-auto flex">
+      <p className="ml-2 text-white mr-3 font-bold text-2xl font-mono">{`${val.checked.length}`}</p>
+      <div className="pl-2 text-white text-3xl flex items-center justify-center mr-2 cursor-pointer border-l border-light-border">
+        <svg viewBox="0 0 24 24" style={{fill: 'white', width: '1em', height: '1em'}} onClick={() => val.setChecked([])}><path d={iconClose} /></svg>
+      </div>
+    </div>
+  </div>
 }

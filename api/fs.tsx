@@ -28,7 +28,13 @@ export interface FsMoveData {
   Dst: string
 }
 
-export function FsMove(options: RequestOptions, val: FsMoveData) : Promise<Response> { return GenericRequest(FsURL(host, "mkdir"), val) }
+export function FsVerify(options: RequestOptions, val: FsMoveData) : Promise<Response> {
+  return GenericRequest({url: FsURL(options.host, "verify"), id: options.id}, val);
+}
+
+export function FsMove(options: RequestOptions, val: FsMoveData) : Promise<Response> {
+  return GenericRequest({url: FsURL(options.host, "move"), id: options.id}, val)
+}
 
 export interface FsReadDirValue {
   files: FsOsFileInfo[]

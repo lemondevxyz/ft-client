@@ -20,5 +20,5 @@ ft-client is a client for the [ft](https://github.com/lemondevxyz/ft) project.
 - [] [Skip, Replace, Create New File] dialog when file exists
 - [] Operation Error handling
 - [] Make a user-friendly way to tell user about request failures
-- [] Verify tool in File actions
+- [x] Verify tool in File actions with notification support 
 - [] Silky smooth animation for dialogs and file actions
