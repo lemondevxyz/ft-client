@@ -1,25 +1,17 @@
 import { useState, useEffect } from 'react';
-import { OperationExit, OperationObject, OperationPause, OperationResume } from '../api/operation';
+import { OperationExit, OperationObject, OperationPause, OperationResume, OperationStatus } from '../api/operation';
 import Link from 'next/link';
 import { IconButton } from './button';
 import { FixPath, FsOsFileInfo, HumanSize, IsDirectory } from '../api/fs';
 import { FileComponentIcon, iconClose } from './browser';
 import { RequestOptions } from '../api/generic';
 
-enum Status {
-    Default,
-    Started,
-    Paused,
-    Finished,
-    Aborted,
-}
-
-export function StatusColor(val : Status) : string {
+export function StatusColor(val : OperationStatus) : string {
     switch(val) {
-            case Status.Started: return "lightgreen"
-            case Status.Paused: return "yellow"
-            case Status.Finished: return "cyan"
-            case Status.Aborted: return "tomato"
+            case OperationStatus.Started: return "lightgreen"
+            case OperationStatus.Paused: return "yellow"
+            case OperationStatus.Finished: return "cyan"
+            case OperationStatus.Aborted: return "tomato"
     }
 
     return "#f1f1f1"
@@ -73,17 +65,16 @@ export function Dir(str : string) : string {
     return str
 }
 
-export function FileLink(filepath : string) {
-  return <Link href={FixPath("/"+filepath)}>
-    <a className="underline" href={`/${filepath}`}>
+export function FileLink(setPwd: (val: string) => void, filepath : string) {
+  return <a className="underline" onClick={() => setPwd(filepath)}>
       {filepath}
     </a>
-  </Link>
 }
 
 export interface OperationProps extends OperationObject {
     //openDialog: () => void
     options: RequestOptions
+    setPwd: (val : string) => void
 }
 
 const iconPause = "M14,19H18V5H14M6,19H10V5H6V19Z";
@@ -156,13 +147,13 @@ export function OperationComponent(props: OperationProps) {
                 <div className="px-4 mb-4 font-mono overflow-hidden">
                     <div className="overflow-hidden" style={{textOverflow: "ellipsis", wordBreak: "keep-all"}}>
                         <div className="flex items-center">
-                            {src ? <>{FileComponentIcon(IsDirectory(src))}{FileLink(src.path)}</> : "operation hasn't started"}
+                            {src ? <>{FileComponentIcon(IsDirectory(src))}{FileLink(props.setPwd, src.path)}</> : "operation hasn't started"}
                         </div>
                     </div>
                     <div className="overflow-hidden" style={{textOverflow: "ellipsis", wordBreak: "keep-all"}}>
                         <div className="flex items-center">
                             <svg viewBox="0 0 24 24" className="mr-2" style={{width: '1.5em', height: '1.5em', fill: 'currentColor'}}><path d="M22,4H14L12,2H6A2,2 0 0,0 4,4V16A2,2 0 0,0 6,18H22A2,2 0 0,0 24,16V6A2,2 0 0,0 22,4M2,6H0V11H0V20A2,2 0 0,0 2,22H20V20H2V6Z" /></svg>
-                            {FileLink(dst)}
+                            {FileLink(props.setPwd, dst)}
                         </div>
                     </div>
                 </div>
@@ -177,7 +168,7 @@ export function OperationComponent(props: OperationProps) {
             </div>
             {/* either showLog or showFiles but not both */}
             {(showLog || showFiles) && ((showLog && showFiles) == false) && <code className="h-32 mt-2 mb-4 mx-auto w-11/12 font-monospace text-light-head overflow-y-auto" style={{backgroundColor: "rgba(0, 0, 0, 0.5)"}}><pre className="p-2">
-                {(showLog && props.log) || (showFiles && props.src.map((val : FsOsFileInfo) => val.path).join("\n"))}
+                {(showLog && props.log) || (showFiles && props.src.map((val : FsOsFileInfo) => val.absPath).join("\n"))}
             </pre></code>}
         </div>
     </div>

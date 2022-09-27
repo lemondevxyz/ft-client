@@ -2,7 +2,7 @@ import '../styles/globals.css'
 import type { AppProps } from 'next/app'
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { EventOperationProgress, EventOperationStatus, OperationObject, OperationSize, OperationSizeValue } from '../api/operation';
+import { EventOperationLog, EventOperationError, EventOperationProgress, EventOperationStatus, OperationObject, OperationSize, OperationSizeValue } from '../api/operation';
 import EventEmitter from 'events';
 import { EventFsMove, HumanSize } from '../api/fs';
 
@@ -44,11 +44,24 @@ function MyApp({ Component, pageProps }: AppProps) {
     setInit(false);
 
     const sse = new EventSource("http://localhost:8080/sse");
+    sse.onerror = () => setId("");
 
     let id = ""
     sse.addEventListener("id", (e : MessageEvent<string>) => {
       setId(e.data);
       id = e.data;
+    });
+
+    sse.addEventListener("operation-log", function(e : MessageEvent<string>) {
+      const obj : EventOperationLog = JSON.parse(e.data);
+
+      const myOps = {...ops};
+      const myOp = {...myOps[obj.id]}
+      myOp.log += obj.message+"\n";
+
+      myOps[obj.id] = myOp
+
+      opsSetter(myOps);
     });
 
     sse.addEventListener("operation-all", function(e : MessageEvent<string>) {
@@ -77,11 +90,11 @@ function MyApp({ Component, pageProps }: AppProps) {
       new Notification(`New Operation with ${op.src.length} items with ${HumanSize(op.size)}`)
     });
     sse.addEventListener("operation-update", (e : MessageEvent<string>) => {
-        let op : OperationObject = JSON.parse(e.data);
+      let op : OperationObject = JSON.parse(e.data);
       op.started = new Date();
 
       let myOps = {...ops}
-      myOps[op.id] = op;
+      myOps[op.id] = Object.assign({...myOps[op.id]}, op);
 
       opsSetter(myOps);
 
@@ -95,7 +108,11 @@ function MyApp({ Component, pageProps }: AppProps) {
     })
 
     sse.addEventListener("operation-error", function(e : MessageEvent<string>) {
-      console.log("op-err", e.data)
+      const ev : EventOperationError = JSON.parse(e.data);
+      if(ev.err.error.length > 0) {
+        console.log(ev.id, ev.err.error);
+        // TODO: Skip or replace current file
+      }
     });
 
     sse.addEventListener("operation-progress", function(e : MessageEvent<string>) {

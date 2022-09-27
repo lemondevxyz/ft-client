@@ -142,7 +142,7 @@ export default function Fs(val : PageProps) {
   const [dirDialog, setDirDialog] = useState("null");
   const dirDialogComponent = BrowserDirectoryDialog({
     options: reqOptions,
-    base: "/home/tim/setup/win10/",
+    base: "/",
     dialogFn: (path: string) => {
       setDirDialog(path);
 
@@ -160,19 +160,15 @@ export default function Fs(val : PageProps) {
         return arr.every(comparefn)
       });
 
-      if(op === undefined)
+      if(op === undefined) {
         OperationNew(reqOptions, {
           writer_id: val.id,
           src: checked,
           dst: path,
-        }).then((e : Response) => {
-          return e.json()
-        }).then((e : OperationGenericData) => {
-          OperationStart(reqOptions, {
-            id: e.id,
-          });
-        });
-      else {
+        })
+
+        new Notification("Created new operation");
+      } else {
         let paths = op.src.map((val : FsOsFileInfo) : string => val.absPath);
         paths = paths.concat(checked);
 
@@ -193,10 +189,6 @@ export default function Fs(val : PageProps) {
   const copyPaths = () => {
     setShowCopyPaths(true);
   }
-
-  useEffect(() => {
-    console.log("here", val.ops);
-  }, [val.ops]);
 
   const pathTextarea = () => <textarea className="p-4 h-3/4 w-full resize-none" style={{backgroundColor: "rgba(0, 0, 0, 0.2)"}} value={checked.join("\n")} onClick={(e) => {
     e.preventDefault();
