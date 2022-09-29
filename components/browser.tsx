@@ -98,6 +98,8 @@ export function Browser(obj : BrowserProps) {
   useEffect(() => {
     if(!ready) return;
     const updateFn = (e : string) => {
+      console.log(e);
+
       const a1 : string[] = obj.pwd.split("/")
       const a2 : string[] = e.split("/")
       const a3 : string[] = a2.slice(0, -1);

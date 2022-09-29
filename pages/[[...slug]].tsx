@@ -7,8 +7,8 @@ import { Browser, BrowserDirectoryDialog, BrowserProps, FileActions } from '../c
 import { IconTextButton } from '../components/button';
 import { Navigators } from '../components/navigators';
 import { globalHost, Map, PageProps } from './_app';
-import { OperationGenericData, OperationNew, OperationObject, OperationSetSources, OperationStart } from '../api/operation';
-import { OperationComponent } from '../components/operation';
+import { OperationBehaivor, OperationGenericData, OperationNew, OperationObject, OperationSetSources, OperationStart } from '../api/operation';
+import { OperationComponent, OperationProps } from '../components/operation';
 import { RequestOptions } from '../api/generic';
 import { Dialog } from '../components/dialog';
 
@@ -99,10 +99,9 @@ export default function Fs(val : PageProps) {
       id: val.id
     });
 
-
     setPwd(base);
     setReady(true);
-  }, [router, ready]); // eslint-disable-line
+  }, [router]); // eslint-disable-line
 
   const pwdSetter = (pwd : string) => {
     //if(pwd === "/") path = "/fs";
@@ -142,7 +141,7 @@ export default function Fs(val : PageProps) {
   const [dirDialog, setDirDialog] = useState("null");
   const dirDialogComponent = BrowserDirectoryDialog({
     options: reqOptions,
-    base: "/",
+    base: "/home/tim",
     dialogFn: (path: string) => {
       setDirDialog(path);
 
@@ -193,7 +192,7 @@ export default function Fs(val : PageProps) {
   const pathTextarea = () => <textarea className="p-4 h-3/4 w-full resize-none" style={{backgroundColor: "rgba(0, 0, 0, 0.2)"}} value={checked.join("\n")} onClick={(e) => {
     e.preventDefault();
     e.currentTarget.focus();
-    e.currentTarget.setSelectionRange(0, e.currentTarget.value.length); console.log(e.currentTarget.innerText.length)}}></textarea>;
+    e.currentTarget.setSelectionRange(0, e.currentTarget.value.length)}}></textarea>;
 
   return <div>
     <Head>
@@ -241,12 +240,25 @@ export default function Fs(val : PageProps) {
         </div>
       </div>
       <div className={`fixed top-0 right-0 w-full h-full flex justify-end ${showOperations ? "block" : "hidden"}`} style={{backgroundColor: "rgba(0, 0, 0, 0.5)"}}
-      onClick={(e) => e.target === e.currentTarget && setShowOperations(false)}>
+           onClick={(e) => e.target === e.currentTarget && setShowOperations(false)}>
         <div className="w-11/12 md:w-3/4 lg:w-2/3 xl:w-1/2 h-full bg-light shadow">
           <div className="py-24 w-11/12 mx-auto">
-            {Object.values(val.ops).map((op : OperationObject, i : number) : ReactElement => {
-              const obj = Object.assign(op, {options: reqOptions})
-              return <OperationComponent key={op.id+i.toString()} {...obj} />})}
+            {Object.values(val.ops).map((op : OperationObject, i : number) : ReactElement|undefined => {
+              const obj : OperationProps = Object.assign({
+                options: reqOptions,
+                setPwd: pwdSetter,
+                proceed: (behaivor : OperationBehaivor) => {
+                  op.behaivor = behaivor;
+                  val.ev.emit("operation-set", op);
+                  val.ev.emit("operation-file-exist-err", { opId: op.id })
+                },
+                setKeepBehaivor: (bool : boolean) => {
+                  op.keepBehaivor = bool
+                  val.ev.emit("operation-set", op);
+                },
+              }, op)
+
+              return op !== undefined ? <OperationComponent key={op.id+i.toString()} {...obj} /> : undefined})}
           </div>
         </div>
       </div>

@@ -2,9 +2,10 @@ import '../styles/globals.css'
 import type { AppProps } from 'next/app'
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { EventOperationLog, EventOperationError, EventOperationProgress, EventOperationStatus, OperationObject, OperationSize, OperationSizeValue } from '../api/operation';
+import { EventOperationLog, EventOperationError, EventOperationProgress, EventOperationStatus, OperationObject, OperationSize, OperationSizeValue, OperationBehaivor, ErrDstAlreadyExists, OperationProceed, OperationPause, OperationSetSources, OperationSetIndex, OperationResume } from '../api/operation';
 import EventEmitter from 'events';
-import { EventFsMove, HumanSize } from '../api/fs';
+import { EventFsMove, FsRemove, HumanSize } from '../api/fs';
+import { Mutex } from 'async-mutex'
 
 export const globalHost = "localhost:8080"
 
@@ -35,16 +36,78 @@ function MyApp({ Component, pageProps }: AppProps) {
         new Notification("Now you can be informed on the latest updates about the operations and file system");
       });
 
+    const mtx = new Mutex();
+
     let ops : Map<OperationObject> = {};
     const opsSetter = (val : Map<OperationObject>) => {
       setOps(val);
       ops = val;
+      window.ops = val;
     }
 
     setInit(false);
 
-    const sse = new EventSource("http://localhost:8080/sse");
-    sse.onerror = () => setId("");
+    const sse = new EventSource(`http://${globalHost}/sse`);
+    sse.onerror = () => {
+      mtx.runExclusive(() => {
+        setId("")
+        opsSetter({})
+      })
+    }
+
+    ev.addListener("operation-set", (val: OperationObject) => {
+      mtx.runExclusive(() => {
+        const myOps = {...ops}
+        myOps[val.id] = val;
+
+        opsSetter(myOps);
+      })
+    })
+
+    ev.addListener("operation-file-exist-err", ({ opId } : {opId: string}) => {
+      const options = {host:globalHost, id:id};
+      const myOp = {...ops[opId]};
+
+      const writeChanges = (op: OperationObject) => {
+        mtx.runExclusive(() => {
+          if(ops[opId] === undefined) return;
+
+          const myOps = {...ops};
+          if(!op.keepBehaivor) {
+            op.behaivor = OperationBehaivor.Default;
+          }
+          delete op.err
+
+          myOps[opId] = {...op};
+
+          opsSetter(myOps)
+        })
+      }
+
+      switch(myOp.behaivor) {
+        case OperationBehaivor.Replace:
+          const path = myOp.dst.split("/").concat(myOp.src[myOp.index].path.split("/")).join("/");
+          FsRemove(options, { Name: path }).then(() => {
+            OperationProceed(options, { id: opId }).then(() => {
+              writeChanges(myOp)
+            });
+          });
+          break;
+        case OperationBehaivor.Skip:
+          OperationSetIndex(options, {id: opId, index: myOp.index+1}).then(() => {
+            OperationProceed(options, {id: opId}).then(() => {
+              writeChanges(myOp)
+            });
+          })
+          break;
+        case OperationBehaivor.Continue:
+          OperationProceed(options, {id: opId}).then(() => {
+            writeChanges(myOp)
+          });
+          break;
+      }
+
+    })
 
     let id = ""
     sse.addEventListener("id", (e : MessageEvent<string>) => {
@@ -53,81 +116,118 @@ function MyApp({ Component, pageProps }: AppProps) {
     });
 
     sse.addEventListener("operation-log", function(e : MessageEvent<string>) {
-      const obj : EventOperationLog = JSON.parse(e.data);
+      mtx.runExclusive(() => {
+        const obj : EventOperationLog = JSON.parse(e.data);
 
-      const myOps = {...ops};
-      const myOp = {...myOps[obj.id]}
-      myOp.log += obj.message+"\n";
+        if(ops[obj.id] !== undefined) {
+          const myOps = {...ops};
+          const myOp : OperationObject|undefined = {...myOps[obj.id]}
 
-      myOps[obj.id] = myOp
+          if(myOp.log === undefined) myOp.log = "";
 
-      opsSetter(myOps);
+          myOp.log += obj.message;
+          myOps[obj.id] = myOp;
+
+          opsSetter(myOps);
+        }
+      })
     });
 
     sse.addEventListener("operation-all", function(e : MessageEvent<string>) {
-      let map : Map<OperationObject> = JSON.parse(e.data);
-      //console.log("here", map);
-      const myOps = {...ops};
-      Object.values(map).forEach((op : OperationObject) => {
-        op.started = new Date();
+      mtx.runExclusive(() => {
+        let map : Map<OperationObject> = JSON.parse(e.data);
+        const myOps = {...ops};
+        Object.values(map).forEach((op : OperationObject) => {
+          op.started = new Date();
 
-        myOps[op.id] = {...op};
-      });
+          myOps[op.id] = {...op};
+        });
 
-      opsSetter(myOps);
-      new Notification(`Found ${Object.keys(myOps).length} operations`)
+        opsSetter(myOps);
+        new Notification(`Found ${Object.keys(myOps).length} operations`)
+      })
     })
 
     sse.addEventListener("operation-new", (e : MessageEvent<string>) => {
-      let op : OperationObject = JSON.parse(e.data);
-      op.started = new Date();
+      mtx.runExclusive(() => {
+        let op : OperationObject = JSON.parse(e.data);
+        op.started = new Date();
 
-      let myOps = {...ops}
-      myOps[op.id] = op;
+        let myOps = {...ops}
+        myOps[op.id] = op;
 
-      opsSetter(myOps);
+        opsSetter(myOps);
 
-      new Notification(`New Operation with ${op.src.length} items with ${HumanSize(op.size)}`)
+        new Notification(`New Operation with ${op.src.length} items with ${HumanSize(op.size)}`)
+      })
     });
+
     sse.addEventListener("operation-update", (e : MessageEvent<string>) => {
-      let op : OperationObject = JSON.parse(e.data);
-      op.started = new Date();
+      mtx.runExclusive(() => {
+        let op : OperationObject = JSON.parse(e.data);
 
-      let myOps = {...ops}
-      myOps[op.id] = Object.assign({...myOps[op.id]}, op);
+        if(ops[op.id] === undefined) return;
 
-      opsSetter(myOps);
+        op.started = new Date();
 
-      new Notification(`Operation ${op.id} changed`);
+        let myOps = {...ops}
+        myOps[op.id] = Object.assign({...myOps[op.id]}, op);
+
+        opsSetter(myOps);
+
+        new Notification(`Operation ${op.id} changed`);
+      })
     });
 
     sse.addEventListener("operation-done", function(e : MessageEvent<string>) {
-      let myOps = {...ops}
-      delete myOps[e.data];
-      opsSetter(myOps);
+      mtx.runExclusive(() => {
+        let myOps = {...ops}
+        delete myOps[e.data];
+        opsSetter(myOps);
+      })
     })
 
     sse.addEventListener("operation-error", function(e : MessageEvent<string>) {
-      const ev : EventOperationError = JSON.parse(e.data);
-      if(ev.err.error.length > 0) {
-        console.log(ev.id, ev.err.error);
+      const data : EventOperationError = JSON.parse(e.data);
+      mtx.runExclusive(() => {
+        if(ops[data.id] === undefined) return;
+
+        const myOp = {...ops[data.id]}
+        if(data.error && data.error.length > 0) {
+          myOp.err = {...data}
+        } else {
+          delete myOp.err
+        }
+
+        myOp.index = data.index
+
+        const myOps = {...ops};
+        myOps[data.id] = myOp;
+
+        opsSetter(myOps)
+
         // TODO: Skip or replace current file
-      }
+        if(data.error === ErrDstAlreadyExists) {
+          ev.emit("operation-file-exist-err", myOp.id);
+        }
+      })
     });
 
     sse.addEventListener("operation-progress", function(e : MessageEvent<string>) {
       const ev : EventOperationProgress = JSON.parse(e.data);
 
-      if(ops !== undefined && ops[ev.id] !== undefined) {
-        const myOps = {...ops}
-        const myOp = {...myOps[ev.id]}
-        myOp.index = ev.index;
-        myOp.progress = ev.size;
+      mtx.runExclusive(() => {
+        if(ops !== undefined && ops[ev.id] !== undefined) {
+          const myOps = {...ops}
+          const myOp = {...myOps[ev.id]}
+          myOp.index = ev.index;
+          myOp.progress = ev.size;
 
-        myOps[ev.id] = myOp;
+          myOps[ev.id] = myOp;
 
-        opsSetter(myOps);
-      }
+          opsSetter(myOps);
+        }
+      })
     });
 
     let updateFs = (e : string) => ev.emit("fs-update", e);
