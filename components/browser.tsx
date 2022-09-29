@@ -1,12 +1,13 @@
 import EventEmitter from 'events';
-import { useEffect, useState, ReactElement } from 'react';
-import { FsReadDir, FsReadDirValue, FsOsFileInfo, IsDirectory, HumanDate, HumanSize, SortByDirectory, DirMode, FixPath, FsRemove, FsVerify } from '../api/fs'
+import { useEffect, useState, ReactElement, MouseEventHandler } from 'react';
+import { FsReadDir, FsReadDirValue, FsOsFileInfo, IsDirectory, HumanDate, HumanSize, SortByDirectory, DirMode, FixPath, FsRemove, FsVerify, FsMove } from '../api/fs'
 import { RequestOptions } from '../api/generic';
 import { IconTextButton } from './button';
 import { Dialog } from './dialog';
 
 export interface FileProps {
   f: FsOsFileInfo,
+  options: RequestOptions,
   showTime?: boolean,
   onClick?: () => void,
   checked?: string[],
@@ -42,13 +43,27 @@ export function FileComponent(val: FileProps) {
       val.setChecked(index >= 0 ? val.checked.filter((v) => v != val.f.path) : val.checked.concat(val.f.path));}} />
   }
 
+  const renameFile = (path: string) => {
+    const newName = prompt("Enter new file name");
+
+    if(newName !== null && newName.length > 0) {
+      const newPath = path.split("/").slice(0, -1).concat(newName).join("/");
+
+      FsMove(val.options, {
+        Src: path,
+        Dst: newPath
+      })
+    }
+  }
+
   return <tr className={`p-1 font-mono w-full`}>
     {val.setChecked !== undefined &&
      <td className="w-6">
        {checkbox}
      </td>}
     <td className={`flex items-center my-2 w-full select-none ${IsDirectory(val.f) ? "cursor-pointer" : "cursor-default"}`}
-        onClick={ () => val.onClick !== undefined && val.onClick() }>
+        onClick={ () => val.onClick !== undefined && val.onClick() }
+        onContextMenu={ (e) => { e.preventDefault(); renameFile(val.f.absPath)}}>
       {FileComponentIcon(IsDirectory(val.f))}
       <FileComponentFilename {...val.f} />
     </td>
@@ -155,7 +170,8 @@ export function Browser(obj : BrowserProps) {
           showTime: true,
           onClick: () => IsDirectory(x) && obj.setPwd(path),
           checked: obj.checked,
-          setChecked: obj.setChecked
+          setChecked: obj.setChecked,
+          options: obj.options,
         }
         return <FileComponent key={path+i.toString()} {...val} />;
       })}
