@@ -15,7 +15,7 @@ export type Map<T> = {
 
 export interface PageProps {
   id: string
-  ops: Map<any>
+  ops: Map<OperationObject>
   ev: EventEmitter
   host: string
 }

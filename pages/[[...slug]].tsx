@@ -8,7 +8,7 @@ import { IconTextButton } from '../components/button';
 import { Navigators } from '../components/navigators';
 import { globalHost, Map, PageProps } from './_app';
 import { OperationBehaivor, OperationGenericData, OperationNew, OperationObject, OperationSetSources, OperationStart } from '../api/operation';
-import { OperationComponent, OperationProps } from '../components/operation';
+import { OperationComponent, OperationProps, OperationSidebar } from '../components/operation';
 import { RequestOptions } from '../api/generic';
 import { Dialog } from '../components/dialog';
 
@@ -111,7 +111,7 @@ export default function Fs(val : PageProps) {
   }
 
   const goToPath = function() {
-    let a = prompt("");
+    let a = prompt("Enter a directory path to go to");
     if(a && a.length > 0) pwdSetter(a);
   }
 
@@ -208,7 +208,7 @@ export default function Fs(val : PageProps) {
       })}
       {/*showOperations && <OperationDialog {...opDialogProps} />*/}
       {dirDialogComponent}
-      {checked.length > 0 && FileActions({checked, setChecked, copy, copyPaths, options: reqOptions}) }
+      {FileActions({checked, setChecked, copy, copyPaths, options: reqOptions})}
       <div className="hidden md:block px-4 pt-2 text-md bg-less-dark min-h-screen text-light-head" style={{minWidth: "300px"}}>
         <h1 className="text-3xl font-bold mb-2">Filesystem tree</h1>
         {Tree({path: "/", setPwd: pwdSetter, tree: treeFileInfo, setTree: setTreeFileInfo, options: reqOptions})}
@@ -239,32 +239,17 @@ export default function Fs(val : PageProps) {
           </div>
         </div>
       </div>
-      <div className={`fixed top-0 right-0 w-full h-full flex justify-end ${showOperations ? "block" : "hidden"}`} style={{backgroundColor: "rgba(0, 0, 0, 0.5)"}}
-           onClick={(e) => e.target === e.currentTarget && setShowOperations(false)}>
-        <div className="w-11/12 md:w-3/4 lg:w-2/3 xl:w-1/2 h-full bg-light shadow">
-          <div className="py-24 w-11/12 mx-auto">
-            {Object.values(val.ops).map((op : OperationObject, i : number) : ReactElement|undefined => {
-              const obj : OperationProps = Object.assign({
-                options: reqOptions,
-                setPwd: pwdSetter,
-                proceed: (behaivor : OperationBehaivor) => {
-                  op.behaivor = behaivor;
-                  val.ev.emit("operation-set", op);
-                  val.ev.emit("operation-file-exist-err", { opId: op.id })
-                },
-                setKeepBehaivor: (bool : boolean) => {
-                  op.keepBehaivor = bool
-                  val.ev.emit("operation-set", op);
-                },
-              }, op)
-
-              return op !== undefined ? <OperationComponent key={op.id+i.toString()} {...obj} /> : undefined})}
-          </div>
-        </div>
-      </div>
       <div className="fixed bottom-5 right-5 w-16 h-16 bg-dark items-center justify-center flex text-white rounded-full text-2xl" onClick={() => setShowOperations(true)}>
         <svg style={{width: '1em', height:'1em', fill: 'currentColor'}}><path d={iconFolderFile} /></svg>
       </div>
+      {OperationSidebar({
+        ops: val.ops,
+        ev: val.ev,
+        pwdSetter,
+        options: reqOptions,
+        setShow: (val : boolean) => setShowOperations(val),
+        show: showOperations,
+      })}
     </div>
   </div>
 }

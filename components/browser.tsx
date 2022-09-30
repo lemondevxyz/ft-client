@@ -44,6 +44,8 @@ export function FileComponent(val: FileProps) {
   }
 
   const renameFile = (path: string) => {
+    if(path == "") return;
+
     const newName = prompt("Enter new file name");
 
     if(newName !== null && newName.length > 0) {
@@ -159,7 +161,7 @@ export function Browser(obj : BrowserProps) {
       </tr>
     </thead>
     <tbody>
-      {obj.showParent && <FileComponent {...{f: {name: "..", modTime: "", mode: DirMode, size: -1, path: "", absPath: ""}, onClick: () => obj.setPwd(obj.pwd.split("/").slice(0, -1).join("/") || "/"), setChecked: obj.setChecked}} />}
+      {obj.showParent && <FileComponent {...{f: {name: "..", modTime: "", mode: DirMode, size: -1, path: "", absPath: ""}, onClick: () => obj.setPwd(obj.pwd.split("/").slice(0, -1).join("/") || "/"), setChecked: obj.setChecked, options: obj.options}} />}
       {fileInfo !== null && fileInfo !== undefined && fileInfo.filter((x) =>
         obj.filter ? obj.filter(x) : true
       ).map((x : FsOsFileInfo, i : number) => {
@@ -293,6 +295,18 @@ const iconRemove = "M9,3V4H4V6H5V19A2,2 0 0,0 7,21H17A2,2 0 0,0 19,19V6H20V4H15V
 const iconVerify = "M23,12L20.56,9.22L20.9,5.54L17.29,4.72L15.4,1.54L12,3L8.6,1.54L6.71,4.72L3.1,5.53L3.44,9.21L1,12L3.44,14.78L3.1,18.47L6.71,19.29L8.6,22.47L12,21L15.4,22.46L17.29,19.28L20.9,18.46L20.56,14.78L23,12M10,17L6,13L7.41,11.59L10,14.17L16.59,7.58L18,9L10,17Z";
 
 export function FileActions(val : FileActionsProps) {
+  const [ animation, setAnimation ] = useState("")
+  const [ unmount, setUnmount ] = useState<boolean>(false);
+  const [ init, setInit ] = useState(true);
+
+  useEffect(() => {
+    const shouldShow = val.checked.length > 0
+    if(shouldShow) setUnmount(false);
+
+    if(!init) setAnimation(shouldShow ? "animate-popIn" : "animate-popOut")
+    else setInit(false)
+  }, [val.checked, animation]); // eslint-disable-rule
+
   const copy = val.copy;
   const copyPaths = val.copyPaths
   const remove = () => {
@@ -313,7 +327,8 @@ export function FileActions(val : FileActionsProps) {
     }).catch(() => new Notification("files do not match"));
   }
 
-  return <div className={`fixed top-0 left-0 w-full h-auto py-4 md:py-none md:h-16 bg-dark animate-fadeIn flex items-center text-sm`}>
+  //console.log(animation);
+  return !unmount && <div className={`fixed top-0 left-0 w-full h-auto py-4 md:py-none md:h-16 bg-dark -translate-y-20 opacity-0 ${animation} flex items-center text-sm`} onAnimationEnd={(e) => { e.animationName === "popOut" && setTimeout(() => setUnmount(true), 250)}}>
     <div className="flex flex-nowrap overflow-x-auto mr-2 items-center">
       <div className="ml-2 mr-1 shrink-0">
         <IconTextButton {...{dark: true, text: "Copy", click: copy, icon: iconCopy}} />

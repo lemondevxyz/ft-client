@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { ReactElement, useState, useEffect } from 'react';
 import { ErrDstAlreadyExists, OperationBehaivor, OperationExit, OperationObject, OperationPause, OperationResume, OperationStatus } from '../api/operation';
-import Link from 'next/link';
 import { IconButton, IconTextButton } from './button';
-import { FixPath, FsOsFileInfo, HumanSize, IsDirectory } from '../api/fs';
+import { FsOsFileInfo, HumanSize, IsDirectory } from '../api/fs';
 import { FileComponentIcon, iconClose } from './browser';
 import { RequestOptions } from '../api/generic';
+import { Map } from '../pages/_app';
+import EventEmitter from 'events';
 
 export function StatusColor(val : OperationStatus) : string {
     switch(val) {
@@ -65,9 +66,9 @@ export function Dir(str : string) : string {
     return str
 }
 
-export function FileLink(setPwd: (val: string) => void, val : FsOsFileInfo) {
-  return <a className="cursor-pointer underline" onClick={() => setPwd(val.absPath)}>
-      {val.path}
+export function FileLink(setPwd: (val: string) => void, link : string, name : string) {
+  return <a className="cursor-pointer underline" onClick={() => setPwd(link)} title={link}>
+      {name}
     </a>
 }
 
@@ -143,8 +144,6 @@ export function OperationComponent(props: OperationProps) {
     if(props.index !== -1 && props.index < props.src.length)
         src = props.src[props.index];
 
-    let dst = props.dst;
-
     const pause = () => OperationPause(props.options, { id: props.id });
     const resume = () => OperationResume(props.options, { id: props.id });
     const cancel = () => OperationExit(props.options, { id: props.id });
@@ -185,12 +184,12 @@ export function OperationComponent(props: OperationProps) {
                 <div className="px-4 mb-4 font-mono overflow-hidden">
                     <div className="overflow-hidden" style={{textOverflow: "ellipsis", wordBreak: "keep-all"}}>
                         <div className="flex items-center">
-                            {src ? <>{FileComponentIcon(IsDirectory(src))}&nbsp;{FileLink(props.setPwd, src)}</> : "operation hasn't started"}
+                            {src ? <>{FileComponentIcon(IsDirectory(src))}&nbsp;{FileLink(props.setPwd, src.absPath, src.path)}</> : "operation hasn't started"}
                         </div>
                     </div>
                     <div className="overflow-hidden" style={{textOverflow: "ellipsis", wordBreak: "keep-all"}}>
                         <div className="flex items-center">
-    {FileComponentIcon(true)}&nbsp;{FileLink(props.setPwd, props.dst)}
+                            {FileComponentIcon(true)}&nbsp;{FileLink(props.setPwd, props.dst, props.dst)}
                         </div>
                     </div>
                 </div>
@@ -207,6 +206,62 @@ export function OperationComponent(props: OperationProps) {
             {(showLog || showFiles) && ((showLog && showFiles) == false) && <code className="h-32 mt-2 mb-4 mx-auto w-11/12 font-monospace text-light-head overflow-y-auto" style={{backgroundColor: "rgba(0, 0, 0, 0.5)"}}><pre className="p-2">
                 {(showLog && props.log) || (showFiles && props.src.map((val : FsOsFileInfo) => val.absPath).join("\n"))}
             </pre></code>}
+        </div>
+    </div>
+}
+
+export interface OperationSidebarProps {
+    ops: Map<OperationObject>
+    options: RequestOptions
+    pwdSetter: (val : string) => any,
+    ev: EventEmitter
+    show: boolean
+    setShow: (val : boolean) => any
+}
+
+export function OperationSidebar(val : OperationSidebarProps) {
+    const [ overlayAnim, setOverlayAnim ] = useState("");
+    const [ contentAnim, setContentAnim ] = useState("")
+    const [ unmount, setUnmount ] = useState<boolean>(false);
+    const [ init, setInit ] = useState<boolean>(true)
+
+    useEffect(() => {
+        if(init) {
+            setInit(false)
+        } else {
+            setOverlayAnim(val.show ? "animate-fasterLeftFadeIn" : "animate-fasterLeftFadeOut")
+            setContentAnim(val.show ? "animate-leftFadeIn" : "animate-leftFadeOut")
+        }
+
+        if(val.show) {
+            setUnmount(false)
+        } else {
+            setTimeout(() => setUnmount(true), 1500);
+        }
+    }, [val.show]); // eslint-disable-rule
+
+    return !unmount && <div className={`fixed top-0 right-0 w-screen h-screen flex justify-end`}>
+        <div className={`absolute top-0 left-0 w-full h-full opacity-0 translate-x-full ${overlayAnim}`} style={{backgroundColor: "rgba(0, 0, 0, 0.5)"}}
+             onClick={(e) => e.target === e.currentTarget && val.setShow(false)}></div>
+        <div className={`w-11/12 md:w-3/4 lg:w-2/3 xl:w-1/2 h-full bg-light shadow z-10 translate-x-full opacity-0 ${contentAnim}`}>
+            <div className="py-24 w-11/12 mx-auto">
+                {Object.values(val.ops).map((op : OperationObject, i : number) : ReactElement|undefined => {
+                    const obj : OperationProps = Object.assign({
+                        options: val.options,
+                        setPwd: val.pwdSetter,
+                        proceed: (behaivor : OperationBehaivor) => {
+                            op.behaivor = behaivor;
+                            val.ev.emit("operation-set", op);
+                            val.ev.emit("operation-file-exist-err", { opId: op.id })
+                        },
+                        setKeepBehaivor: (bool : boolean) => {
+                            op.keepBehaivor = bool
+                            val.ev.emit("operation-set", op);
+                        },
+                    }, op)
+
+                    return op !== undefined ? <OperationComponent key={op.id+i.toString()} {...obj} /> : undefined})}
+            </div>
         </div>
     </div>
 }
