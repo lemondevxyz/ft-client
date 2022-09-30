@@ -8,6 +8,7 @@ export interface FsOsFileInfo {
   absPath: string,
   mode: number,
   modTime: string,
+  dirSize?: number,
 }
 
 export interface FsGenericData {
@@ -16,6 +17,18 @@ export interface FsGenericData {
 
 export function FsURL(host : string, route : string) : string {
   return ApiURL(host, "fs/"+route)
+}
+
+export interface FsSizeValue {
+  size: number
+}
+
+export function FsSize(options: RequestOptions, val: FsGenericData) : Promise<FsSizeValue> {
+  return new Promise((resolve, reject) => {
+    GenericRequest({url: FsURL(options.host, "size"), id: options.id}, val).then((e : Response) => e.json()).then((data : FsSizeValue) => {
+      resolve(data);
+    }).catch((e) => reject(e));
+  })
 }
 
 export function FsRemove(options: RequestOptions, val: FsGenericData) : Promise<Response> {

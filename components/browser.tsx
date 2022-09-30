@@ -1,6 +1,6 @@
 import EventEmitter from 'events';
 import { useEffect, useState, ReactElement, MouseEventHandler } from 'react';
-import { FsReadDir, FsReadDirValue, FsOsFileInfo, IsDirectory, HumanDate, HumanSize, SortByDirectory, DirMode, FixPath, FsRemove, FsVerify, FsMove } from '../api/fs'
+import { FsReadDir, FsReadDirValue, FsOsFileInfo, IsDirectory, HumanDate, HumanSize, SortByDirectory, DirMode, FixPath, FsRemove, FsVerify, FsMove, FsSizeValue, FsSize } from '../api/fs'
 import { RequestOptions } from '../api/generic';
 import { IconTextButton } from './button';
 import { Dialog } from './dialog';
@@ -34,6 +34,8 @@ export function FileComponentDate(val : FsOsFileInfo) : string {
 }
 
 export function FileComponent(val: FileProps) {
+  const [ dirSize, setDirSize ] = useState<number>();
+
   let checkbox : ReactElement | undefined = undefined;
   if(val.setChecked !== undefined && val.checked !== undefined &&
      val.f.name !== "..") {
@@ -58,6 +60,15 @@ export function FileComponent(val: FileProps) {
     }
   }
 
+  const countSize = () => {
+    FsSize(val.options, { Name: val.f.path }).then((e : FsSizeValue) => {
+      setDirSize(e.size)
+    }).catch((e) => {
+      setDirSize(undefined)
+      console.log("FsSize", e);
+    })
+  }
+
   return <tr className={`p-1 font-mono w-full`}>
     {val.setChecked !== undefined &&
      <td className="w-6">
@@ -70,7 +81,10 @@ export function FileComponent(val: FileProps) {
       <FileComponentFilename {...val.f} />
     </td>
     <td>{val.showTime && <pre className="ml-auto mr-2">{ FileComponentDate(val.f) }</pre>}</td>
-    <td>{val.f.size > 0 && HumanSize(val.f.size)}</td>
+    <td className={`${IsDirectory(val.f) && "cursor-pointer"}`}
+        title="Size(click to fetch real size for directory)"
+        aria-label="Size(click to fetch real size for directory)"
+        onClick={ () => IsDirectory(val.f) && countSize() }>{dirSize ? HumanSize(dirSize) : val.f.size > 0 && HumanSize(val.f.size)}</td>
   </tr>
 }
 
