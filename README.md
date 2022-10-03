@@ -21,7 +21,7 @@ ft-client is a client for the [ft](https://github.com/lemondevxyz/ft) project.
 - [x] Ability to rename files
 - [x] Operation Error handling through Try Again(proceed) or Cancel Operation(exit)
 - [x] File system read caches
-- [ ] Make a user-friendly way to tell user about request failures
+- [x] Make a user-friendly way to tell user about request failures
 - [x] Verify tool in File actions with notification support 
 - [x] Silky smooth animation for dialogs and file actions
 - [x] Toasts instead of Notifications

@@ -1,5 +1,4 @@
-import EventEmitter from 'events';
-import { useEffect, useState, ReactElement, MouseEventHandler } from 'react';
+import { useEffect, useState, ReactElement } from 'react';
 import { FsReadDir, FsReadDirValue, FsOsFileInfo, IsDirectory, HumanDate, HumanSize, SortByDirectory, DirMode, FixPath, FsRemove, FsVerify, FsMove, FsSizeValue, FsSize } from '../api/fs'
 import { RequestOptions } from '../api/generic';
 import { Emitter } from '../pages/_app';
@@ -57,7 +56,9 @@ export function FileComponent(val: FileProps) {
       FsMove(val.options, {
         Src: path,
         Dst: newPath
-      })
+      }).catch((e) => {
+        console.log(e)
+      });
     }
   }
 
@@ -118,7 +119,9 @@ export function Browser(obj : BrowserProps) {
       setReady(true);
       setOldPwd(obj.pwd);
     }).catch((e) => {
-      console.error(e)
+      if(obj.ev !== undefined) {
+        obj.ev.emit("toast-insert", `Couldn't read directory '${obj.pwd}': ${e}`)
+      }
       setFileInfo(JSON.parse(oldFiles))
       if(oldPwd != obj.pwd)
         obj.setPwd(oldPwd);
@@ -328,6 +331,8 @@ export function FileActions(val : FileActionsProps) {
     val.checked.forEach((v : string) => {
       FsRemove(val.options, {
         Name: v
+      }).catch((e) => {
+        val.ev.emit("toast-insert", `Cannot remove ${v}: ${e}`)
       })
     })
 
@@ -337,8 +342,7 @@ export function FileActions(val : FileActionsProps) {
     const src = val.checked[0];
     const dst = val.checked[1];
 
-    FsVerify(val.options, { Src: src, Dst: dst }).then(() => val.ev.emit("toast-insert", `${src} and ${dst} are the same`))
-                                                 .catch(() => val.ev.emit("toast-insert", `${src} isn't the same as ${dst}`));
+    FsVerify(val.options, { Src: src, Dst: dst }).then(() => val.ev.emit("toast-insert", `${src} and ${dst} are the same`)).catch(() => val.ev.emit("toast-insert", `${src} isn't the same as ${dst}`));
   }
 
   //console.log(animation);

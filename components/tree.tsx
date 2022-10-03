@@ -1,8 +1,8 @@
 import { FsOsFileInfo, FixPath, FsReadDir, FsReadDirValue, IsDirectory } from "../api/fs";
-import { ReactElement, useState, useEffect } from "react";
+import { ReactElement } from "react";
 import { FileComponentFilename, FileComponentIcon } from "./browser";
-import EventEmitter from "events";
 import { RequestOptions } from "../api/generic";
+import { Emitter } from "../pages/_app";
 
 export interface TreeMap {
   [name: string]: FsOsFileInfo[],
@@ -14,6 +14,7 @@ export interface TreeObject {
   setPwd: (pwd : string) => any,
   path: string,
   options: RequestOptions
+  ev: Emitter,
 }
 
 export function Tree(props: TreeObject) : ReactElement[] {
@@ -26,7 +27,7 @@ export function Tree(props: TreeObject) : ReactElement[] {
 
       const localPath = FixPath(props.path+"/"+val.name)
 
-      let fileInfo = props.tree[localPath] // typescript-tide-disable-line
+      let fileInfo = (props.tree || {})[localPath] // eslint-disable-line
       let later : ReactElement[] = [];
       if(fileInfo !== undefined) {
         later = later.concat(<div className="ml-1" key={"children:"+localPath+"/"}>{Tree({tree: props.tree, setTree: props.setTree, setPwd: props.setPwd, path: localPath, options: props.options})}</div>)
@@ -52,7 +53,9 @@ export function Tree(props: TreeObject) : ReactElement[] {
               obj[localPath] = v.files;
 
               props.setTree(obj);
-            })
+            }).catch((e) => {
+              props.ev.emit("toast-insert", `ReadDir request failed: ${e}`)
+            });
           }} onContextMenu={(e) => {
             e.preventDefault();
 

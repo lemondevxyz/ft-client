@@ -55,6 +55,8 @@ export default function Fs(val : PageProps) {
 
       obj["/"] = val.files;
       setTreeFileInfo(obj)
+    }).catch((e) => {
+      val.ev.emit("toast-insert", `Couldn't read directory for tree: ${e}`)
     });
   }, [router, ready]); // eslint-disable-line
 
@@ -71,6 +73,8 @@ export default function Fs(val : PageProps) {
           obj[e] = v.files;
 
           setTreeFileInfo(obj)
+        }).catch((e) => {
+          val.ev.emit("toast-insert", `Couldn't read directory for tree: ${e}`)
         })
 
       if(treeFileInfo[base])
@@ -79,6 +83,8 @@ export default function Fs(val : PageProps) {
           obj[base] = v.files;
 
           setTreeFileInfo(obj)
+        }).catch((e) => {
+          val.ev.emit("toast-insert", `Couldn't read directory for tree: ${e}`)
         })
     }
 
@@ -135,7 +141,11 @@ export default function Fs(val : PageProps) {
     if(dirPath.at(0) !== "/")
       dirPath = pwd.split("/").concat(dirPath).join("/")
 
-    FsMkdir(reqOptions, { Name: dirPath })
+    FsMkdir(reqOptions, { Name: dirPath }).then(() => {
+      val.ev.emit("fs-update", (dirPath || "").split("/").slice(0, -1).join("/"))
+    }).catch((e) => {
+      val.ev.emit(`Couldn't create directory '${dirPath}': ${e}`)
+    });
   }
 
   const [dirDialog, setDirDialog] = useState("null");

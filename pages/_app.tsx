@@ -35,10 +35,6 @@ function MyApp({ Component }: AppProps<PageProps>) {
 
   useEffect(() => { // eslint-disable-line
     if(!router.isReady || !init) return;
-//   if(Notification.permission === "default")
-//     Notification.requestPermission(() => {
-//       new Notification("Now you can be informed on the latest updates about the operations and file system");
-//     });
 
     const mtx = new Mutex();
 
@@ -55,6 +51,8 @@ function MyApp({ Component }: AppProps<PageProps>) {
       mtx.runExclusive(() => {
         setId("")
         opsSetter({})
+
+        ev.emit("toast-insert", "Lost connection to server; reconnecting soon")
       })
     }
 
@@ -228,7 +226,6 @@ function MyApp({ Component }: AppProps<PageProps>) {
           })
         }, 500)
       }).then(() => {
-        // DONE: Skip or replace current file
         if(data.error === ErrDstAlreadyExists) {
           ev.emit("operation-file-exist-err", data.id);
         }
