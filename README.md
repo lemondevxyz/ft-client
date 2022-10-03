@@ -23,4 +23,5 @@ ft-client is a client for the [ft](https://github.com/lemondevxyz/ft) project.
 - [x] Make a user-friendly way to tell user about request failures
 - [x] Verify tool in File actions with notification support 
 - [x] Silky smooth animation for dialogs and file actions
-- [ ] Toasts instead of Notifications
+- [x] Toasts instead of Notifications
+- [x] Display real size for directories(on size click)

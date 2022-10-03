@@ -16,11 +16,17 @@ export type Map<T> = {
 export interface PageProps {
   id: string
   ops: Map<OperationObject>
-  ev: EventEmitter
+  ev: Emitter
   host: string
 }
 
-function MyApp({ Component, pageProps }: AppProps) {
+export interface Emitter {
+  on(eventName: string | symbol, listener: (...args: any[]) => void): this;
+  off(eventName: string | symbol, listener: (...args: any[]) => void): this;
+  emit(eventName: string | symbol, ...args: any[]): boolean;
+}
+
+function MyApp({ Component }: AppProps<PageProps>) {
   const router = useRouter();
   const [ sseId, setId ] = useState("");
   const [ sseOps, setOps ] = useState<Map<OperationObject>>({});
@@ -28,13 +34,11 @@ function MyApp({ Component, pageProps }: AppProps) {
   const [ ev, _ ] = useState(new EventEmitter());
 
   useEffect(() => { // eslint-disable-line
-    if(!router.isReady) return;
-    if(!init) return;
-
-    if(Notification.permission === "default")
-      Notification.requestPermission(() => {
-        new Notification("Now you can be informed on the latest updates about the operations and file system");
-      });
+    if(!router.isReady || !init) return;
+//   if(Notification.permission === "default")
+//     Notification.requestPermission(() => {
+//       new Notification("Now you can be informed on the latest updates about the operations and file system");
+//     });
 
     const mtx = new Mutex();
 
@@ -42,7 +46,6 @@ function MyApp({ Component, pageProps }: AppProps) {
     const opsSetter = (val : Map<OperationObject>) => {
       setOps(val);
       ops = val;
-      window.ops = val;
     }
 
     setInit(false);
@@ -65,48 +68,55 @@ function MyApp({ Component, pageProps }: AppProps) {
     })
 
     ev.addListener("operation-file-exist-err", ({ opId } : {opId: string}) => {
-      const options = {host:globalHost, id:id};
-      const myOp = {...ops[opId]};
+      mtx.runExclusive(() => {
+        const options = {host:globalHost, id:id};
+        const myOp = {...ops[opId]};
 
-      const writeChanges = (op: OperationObject) => {
-        mtx.runExclusive(() => {
-          if(ops[opId] === undefined) return;
+        const writeChanges = (op: OperationObject) => {
+          mtx.runExclusive(() => {
+            if(ops[opId] === undefined) return;
 
-          const myOps = {...ops};
-          if(!op.keepBehaivor) {
-            op.behaivor = OperationBehaivor.Default;
-          }
-          delete op.err
+            const myOps = {...ops};
+            if(!op.keepBehaivor) {
+              op.behaivor = OperationBehaivor.Default;
+            }
+            delete op.err
 
-          myOps[opId] = {...op};
+            myOps[opId] = {...op};
 
-          opsSetter(myOps)
-        })
-      }
+            opsSetter(myOps)
+          })
+        }
 
-      switch(myOp.behaivor) {
-        case OperationBehaivor.Replace:
-          const path = myOp.dst.split("/").concat(myOp.src[myOp.index].path.split("/")).join("/");
-          FsRemove(options, { Name: path }).then(() => {
-            OperationProceed(options, { id: opId }).then(() => {
-              writeChanges(myOp)
+        switch(myOp.behaivor) {
+          case OperationBehaivor.Replace:
+            const path = myOp.dst.split("/").concat(myOp.src[myOp.index].path.split("/")).join("/");
+            FsRemove(options, { Name: path }).then(() => {
+              OperationProceed(options, { id: opId }).then(() => {
+                writeChanges(myOp)
+              });
             });
-          });
-          break;
-        case OperationBehaivor.Skip:
-          OperationSetIndex(options, {id: opId, index: myOp.index+1}).then(() => {
+            break;
+          case OperationBehaivor.Skip:
+            console.log("skippy", myOp.index)
+            OperationPause(options, { id: opId }).then(() => {
+              OperationSetIndex(options, {id: opId, index: myOp.index+1}).then(() => {
+                OperationResume(options, {id: opId}).then(() => {
+                  OperationProceed(options, {id: opId}).then(() => {
+                    writeChanges(myOp)
+                  });
+                })
+              })
+            })
+            break;
+          case OperationBehaivor.Continue:
             OperationProceed(options, {id: opId}).then(() => {
               writeChanges(myOp)
             });
-          })
-          break;
-        case OperationBehaivor.Continue:
-          OperationProceed(options, {id: opId}).then(() => {
-            writeChanges(myOp)
-          });
-          break;
-      }
+            break;
+        }
 
+      })
     })
 
     let id = ""
@@ -144,7 +154,8 @@ function MyApp({ Component, pageProps }: AppProps) {
         });
 
         opsSetter(myOps);
-        new Notification(`Found ${Object.keys(myOps).length} operations`)
+        //new Notification(`Found ${Object.keys(myOps).length} operations`)
+        ev.emit("toast-insert", `Found ${Object.keys(myOps).length} operations`)
       })
     })
 
@@ -158,7 +169,7 @@ function MyApp({ Component, pageProps }: AppProps) {
 
         opsSetter(myOps);
 
-        new Notification(`New Operation with ${op.src.length} items with ${HumanSize(op.size)}`)
+        ev.emit("toast-insert", `New Operation with ${op.src.length} items with ${HumanSize(op.size)}`)
       })
     });
 
@@ -175,15 +186,20 @@ function MyApp({ Component, pageProps }: AppProps) {
 
         opsSetter(myOps);
 
-        new Notification(`Operation ${op.id} changed`);
+        ev.emit("toast-insert", `Operation ${op.id} was updated`)
       })
     });
 
     sse.addEventListener("operation-done", function(e : MessageEvent<string>) {
       mtx.runExclusive(() => {
+        console.log(ops[e.data].log)
+
         let myOps = {...ops}
         delete myOps[e.data];
+
         opsSetter(myOps);
+
+        ev.emit("toast-insert", `Operation ${e.data} has finished`)
       })
     })
 
@@ -194,6 +210,7 @@ function MyApp({ Component, pageProps }: AppProps) {
 
         const myOp = {...ops[data.id]}
         if(data.error && data.error.length > 0) {
+          ev.emit("toast-insert", `An error has occurred with operation ${data.id}`);
           myOp.err = {...data}
         } else {
           delete myOp.err
@@ -204,11 +221,16 @@ function MyApp({ Component, pageProps }: AppProps) {
         const myOps = {...ops};
         myOps[data.id] = myOp;
 
-        opsSetter(myOps)
-
-        // TODO: Skip or replace current file
+        setTimeout(() => {
+          mtx.runExclusive(() => {
+            if(ops[data.id] === undefined) return;
+            opsSetter(myOps)
+          })
+        }, 500)
+      }).then(() => {
+        // DONE: Skip or replace current file
         if(data.error === ErrDstAlreadyExists) {
-          ev.emit("operation-file-exist-err", myOp.id);
+          ev.emit("operation-file-exist-err", data.id);
         }
       })
     });
@@ -233,11 +255,11 @@ function MyApp({ Component, pageProps }: AppProps) {
     let updateFs = (e : string) => ev.emit("fs-update", e);
 
     sse.addEventListener("fs-mkdir", (e) => {
-      new Notification("Directory ${e.data as string} created")
+      ev.emit("toast-insert", "Directory ${e.data as string} created")
       updateFs(e.data as string)
     });
     sse.addEventListener("fs-remove", (e) => {
-      new Notification("${e.data as string} was removed")
+      ev.emit("toast-insert", "${e.data as string} was removed")
       updateFs(e.data as string)
     });
     sse.addEventListener("fs-move", (e : MessageEvent<string>) => {
@@ -246,16 +268,18 @@ function MyApp({ Component, pageProps }: AppProps) {
       updateFs(obj.old)
       updateFs(obj.new)
 
-      new Notification("${obj.old} -> ${obj.new}")
+      //new Notification("${obj.old} -> ${obj.new}")
+      ev.emit("toast-insert", `${obj.old} -> ${obj.new}`)
     })
   }) // eslint-disable-line
 
-  pageProps = Object.assign(pageProps, {
+  const pageProps = {
     id: sseId,
     ops: sseOps,
-    ev,
+    ev: ev as Emitter,
     host: globalHost,
-  });
+  }
+
 
   return <div className="relative">
     { sseId.length > 0 ? <Component {...pageProps} /> : <p>Waiting for the connection to the server....</p> }

@@ -2,6 +2,7 @@ import EventEmitter from 'events';
 import { useEffect, useState, ReactElement, MouseEventHandler } from 'react';
 import { FsReadDir, FsReadDirValue, FsOsFileInfo, IsDirectory, HumanDate, HumanSize, SortByDirectory, DirMode, FixPath, FsRemove, FsVerify, FsMove, FsSizeValue, FsSize } from '../api/fs'
 import { RequestOptions } from '../api/generic';
+import { Emitter } from '../pages/_app';
 import { IconTextButton } from './button';
 import { Dialog } from './dialog';
 
@@ -96,7 +97,7 @@ export interface BrowserProps {
   checked?: string[],
   setChecked?: (arg0: string[]) => void,
   filter?: (val : FsOsFileInfo) => boolean,
-  ev?: EventEmitter,
+  ev?: Emitter,
 }
 
 export function Browser(obj : BrowserProps) {
@@ -129,8 +130,7 @@ export function Browser(obj : BrowserProps) {
   useEffect(() => {
     if(!ready) return;
     const updateFn = (e : string) => {
-      console.log(e);
-
+      //console.log(e);
       const a1 : string[] = obj.pwd.split("/")
       const a2 : string[] = e.split("/")
       const a3 : string[] = a2.slice(0, -1);
@@ -143,11 +143,11 @@ export function Browser(obj : BrowserProps) {
     }
 
     if(obj !== undefined && obj.ev !== undefined)
-        obj.ev.addListener("fs-update", updateFn);
+        obj.ev.on("fs-update", updateFn);
 
     return () => {
       if(obj !== undefined && obj.ev !== undefined)
-          obj.ev.removeListener("fs-update", updateFn);
+          obj.ev.off("fs-update", updateFn);
     }
   }, [ready, refresh]); // eslint-disable-line
 

@@ -1,16 +1,17 @@
 import { useRouter } from 'next/router';
 import Head from 'next/head'
-import { ReactElement, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FsMkdir, FsOsFileInfo, FsReadDir, FsReadDirValue } from '../api/fs';
 import { Tree, TreeMap } from '../components/tree';
 import { Browser, BrowserDirectoryDialog, BrowserProps, FileActions } from '../components/browser';
 import { IconTextButton } from '../components/button';
 import { Navigators } from '../components/navigators';
-import { globalHost, Map, PageProps } from './_app';
-import { OperationBehaivor, OperationGenericData, OperationNew, OperationObject, OperationSetSources, OperationStart } from '../api/operation';
-import { OperationComponent, OperationProps, OperationSidebar } from '../components/operation';
+import { Map, PageProps } from './_app';
+import { OperationNew, OperationObject, OperationSetSources } from '../api/operation';
+import { OperationSidebar } from '../components/operation';
 import { RequestOptions } from '../api/generic';
 import { Dialog } from '../components/dialog';
+import { ToastContainer } from '../components/toast';
 
 export function Path(val : string) : string[] {
   return val.split("/");
@@ -19,8 +20,6 @@ export function Path(val : string) : string[] {
 export function TrimForwardSlashes(str : string) : string {
   return "/"+(str.split("/").filter((v : string) => v.length > 0).join("/"));
 }
-
-// const now = new Date();
 
 const iconFolderArrow = "M13 19C13 19.34 13.04 19.67 13.09 20H4C2.9 20 2 19.11 2 18V6C2 4.89 2.89 4 4 4H10L12 6H20C21.1 6 22 6.89 22 8V13.81C21.39 13.46 20.72 13.22 20 13.09V8H4V18H13.09C13.04 18.33 13 18.66 13 19M23 19L20 16V18H16V20H20V22L23 19Z";
 const iconFolderAdd = "M10,4L12,6H20A2,2 0 0,1 22,8V18A2,2 0 0,1 20,20H4C2.89,20 2,19.1 2,18V6C2,4.89 2.89,4 4,4H10M15,9V12H12V14H15V17H17V14H20V12H17V9H15Z"
@@ -84,10 +83,10 @@ export default function Fs(val : PageProps) {
     }
 
     if(val.ev)
-      val.ev.addListener("fs-update", eventFsUpdate);
+      val.ev.on("fs-update", eventFsUpdate);
 
     return () => {
-      if(val.ev) val.ev.removeListener("fs-update", eventFsUpdate);
+      if(val.ev) val.ev.off("fs-update", eventFsUpdate);
     }
   }, [ready, treeFileInfo]); // eslint-disable-line
 
@@ -101,7 +100,8 @@ export default function Fs(val : PageProps) {
 
     setPwd(base);
     setReady(true);
-  }, [router]); // eslint-disable-line
+
+  }, [router.isReady, ready]); // eslint-disable-line
 
   const pwdSetter = (pwd : string) => {
     //if(pwd === "/") path = "/fs";
@@ -250,6 +250,9 @@ export default function Fs(val : PageProps) {
         setShow: (val : boolean) => setShowOperations(val),
         show: showOperations,
       })}
+      <div className="fixed bottom-5 left-1/2 -translate-x-1/2 mx-4 pr-32 w-full sm:pr-none sm:mx-none sm:w-1/2 md:w-1/2 lg:w-1/3 text-white">
+        <ToastContainer {...{ev: val.ev}} />
+      </div>
     </div>
   </div>
 }

@@ -4,8 +4,7 @@ import { IconButton, IconTextButton } from './button';
 import { FsOsFileInfo, HumanSize, IsDirectory } from '../api/fs';
 import { FileComponentIcon, iconClose } from './browser';
 import { RequestOptions } from '../api/generic';
-import { Map } from '../pages/_app';
-import EventEmitter from 'events';
+import { Emitter, Map } from '../pages/_app';
 
 export function StatusColor(val : OperationStatus) : string {
     switch(val) {
@@ -107,6 +106,48 @@ function sum(arr : number[]) : number {
     return num
 }
 
+export function OperationErrorOverlay(props: OperationProps) {
+    const [ animate, setAnimate ] = useState("animate-fadeIn");
+    const [ show, setShow ] = useState(false);
+
+    const skip = () => props.proceed(OperationBehaivor.Skip)
+    const replace = () => props.proceed(OperationBehaivor.Replace)
+    const continueFn = () => props.proceed(OperationBehaivor.Continue)
+
+    useEffect(() => {
+        if(props.err === undefined) {
+
+            setAnimate("animate-fadeOut")
+            setTimeout(() => {
+                setShow(false);
+                setAnimate("animate-fadeIn")
+            }, 500);
+        } else {
+            setTimeout(() => { setShow(true) });
+        }
+    }, [props.err]);
+
+    return !show ? <div></div> : <div className={`w-full h-full bg-yellow-400 top-0 left-0 absolute z-20 p-4 flex flex-col items-center justify-center ${animate}`}>
+        <h1 className="text-xl mb-auto"><strong className="text-2xl font-bold">File already exists:</strong><br /> {props.src.length > 0 && props.src[props.index] && props.src[props.index].name}</h1>
+        <h2 className="text-left w-full text-xl font-bold">Choose an action</h2>
+        <div className="flex flex-wrap w-full overflow-hidden">
+            <div className="my-1">
+                {IconTextButton({text: "Skip File", click: skip, icon: iconSkip})}
+            </div>
+            <div className="my-1">
+                {IconTextButton({text: "Replace", click: replace, icon: iconReplace})}
+            </div>
+            <div className="my-1">
+                {IconTextButton({text: "Proceed", click: continueFn, icon: iconContinue})}
+            </div>
+        </div>
+        <div className="flex items-center justify-center my-1 text-xl">
+            <input type="checkbox" className="w-5 h-5" onChange={(e) => props.setKeepBehaivor(e.currentTarget.checked)} />
+            <p className="ml-2">Apply to all files</p>
+        </div>
+    </div>
+}
+
 export function OperationComponent(props: OperationProps) {
     const [ showFiles, setShowFiles ] = useState(false);
     const [ showLog, setShowLog ] = useState(false);
@@ -114,6 +155,7 @@ export function OperationComponent(props: OperationProps) {
 
     const generateOpProgress = () => {
         const opMaxValue = sum((props.src || []).slice(0, props.index).map((val : FsOsFileInfo) => val.size));
+        //console.log(opMaxValue)
 
         return {
             currentValue: opMaxValue+props.progress,
@@ -138,7 +180,7 @@ export function OperationComponent(props: OperationProps) {
     useEffect(() => {
         setFileProgress(generateFileProgress());
         setOpProgress(generateOpProgress());
-    }, [props]);
+    }, [props]); // eslint-disable-line
 
     let src : FsOsFileInfo|undefined;
     if(props.index !== -1 && props.index < props.src.length)
@@ -148,30 +190,8 @@ export function OperationComponent(props: OperationProps) {
     const resume = () => OperationResume(props.options, { id: props.id });
     const cancel = () => OperationExit(props.options, { id: props.id });
 
-    const skip = () => props.proceed(OperationBehaivor.Skip)
-    const replace = () => props.proceed(OperationBehaivor.Replace)
-    const continueFn = () => props.proceed(OperationBehaivor.Continue)
-
     return <div className="w-96 shadow-lg mx-auto relative" style={{backgroundColor: StatusColor(props.status)}}>
-        <div className={`w-full h-full bg-yellow-400 top-0 left-0 absolute z-20 p-4 flex flex-col items-center justify-center ${props.err && props.err.error == ErrDstAlreadyExists && "block" || "hidden"}`}>
-            <h1 className="text-xl mb-auto"><strong className="text-2xl font-bold">File already exists:</strong><br /> {props.src.length > 0 && props.src[props.index] && props.src[props.index].name}</h1>
-            <h2 className="text-left w-full text-xl font-bold">Choose an action</h2>
-            <div className="flex flex-wrap w-full overflow-hidden">
-                <div className="my-1">
-                    {IconTextButton({text: "Skip File", click: skip, icon: iconSkip})}
-                </div>
-                <div className="my-1">
-                    {IconTextButton({text: "Replace", click: replace, icon: iconReplace})}
-                </div>
-                <div className="my-1">
-                    {IconTextButton({text: "Proceed", click: continueFn, icon: iconContinue})}
-                </div>
-            </div>
-            <div className="flex items-center justify-center my-1 text-xl">
-                <input type="checkbox" className="w-5 h-5" onChange={(e) => props.setKeepBehaivor(e.currentTarget.checked)} />
-                <p className="ml-2">Apply to all files</p>
-            </div>
-        </div>
+        <OperationErrorOverlay {...props} />
         <div className="flex flex-col">
             <div className="flex flex-col justify-center">
                 <div className="flex text-xl mx-auto mt-2 mb-4">
@@ -214,7 +234,7 @@ export interface OperationSidebarProps {
     ops: Map<OperationObject>
     options: RequestOptions
     pwdSetter: (val : string) => any,
-    ev: EventEmitter
+    ev: Emitter
     show: boolean
     setShow: (val : boolean) => any
 }
@@ -238,7 +258,7 @@ export function OperationSidebar(val : OperationSidebarProps) {
         } else {
             setTimeout(() => setUnmount(true), 1500);
         }
-    }, [val.show]); // eslint-disable-rule
+    }, [val.show]); // eslint-disable-line
 
     return !unmount && <div className={`fixed top-0 right-0 w-screen h-screen flex justify-end`}>
         <div className={`absolute top-0 left-0 w-full h-full opacity-0 translate-x-full ${overlayAnim}`} style={{backgroundColor: "rgba(0, 0, 0, 0.5)"}}
@@ -260,7 +280,7 @@ export function OperationSidebar(val : OperationSidebarProps) {
                         },
                     }, op)
 
-                    return op !== undefined ? <OperationComponent key={op.id+i.toString()} {...obj} /> : undefined})}
+                    return op !== undefined ? <OperationComponent key={op.id} {...obj} /> : undefined})}
             </div>
         </div>
     </div>

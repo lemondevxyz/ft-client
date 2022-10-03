@@ -51,10 +51,21 @@ module.exports = {
         },
         fasterLeftFadeOut: {
           '0%': { transform: 'translateX(0%)', opacity: '1' },
+          '50%': { opacity: '1' },
           '100%': { transform: 'translateX(100%)', opacity: '0' },
+        },
+        toastIn: {
+          '0%': { transform: 'translateY(2rem)', opacity: '0' },
+          '100%': { transform: 'translateY(0px)', opacity: '1' },
+        },
+        toastOut: {
+          '100%': { transform: 'translateY(-1rem)', opacity: '0' },
+          '0%': { transform: 'translateY(0px)', opacity: '1' },
         },
       },
       animation: {
+        toastIn: 'toastIn 250ms ease-in forwards',
+        toastOut: 'toastOut 250ms ease-in forwards',
         fadeIn: 'fadeIn 250ms ease-in forwards',
         fadeOut: 'fadeOut 250ms ease-in forwards',
         popIn: 'popIn 250ms ease-in forwards',
