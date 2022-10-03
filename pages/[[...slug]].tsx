@@ -164,9 +164,10 @@ export default function Fs(val : PageProps) {
           writer_id: val.id,
           src: checked,
           dst: path,
+        }).then((r : Response) => r.json())
+        .then((op : { id: string }) => {
+          val.ev.emit("toast-insert", `Created new operation ${op.id}`)
         })
-
-        new Notification("Created new operation");
       } else {
         let paths = op.src.map((val : FsOsFileInfo) : string => val.absPath);
         paths = paths.concat(checked);
@@ -208,7 +209,7 @@ export default function Fs(val : PageProps) {
       })}
       {/*showOperations && <OperationDialog {...opDialogProps} />*/}
       {dirDialogComponent}
-      {FileActions({checked, setChecked, copy, copyPaths, options: reqOptions})}
+      {FileActions({checked, setChecked, copy, copyPaths, options: reqOptions, ev: val.ev})}
       <div className="hidden md:block px-4 pt-2 text-md bg-less-dark min-h-screen text-light-head" style={{minWidth: "300px"}}>
         <h1 className="text-3xl font-bold mb-2">Filesystem tree</h1>
         {Tree({path: "/", setPwd: pwdSetter, tree: treeFileInfo, setTree: setTreeFileInfo, options: reqOptions})}

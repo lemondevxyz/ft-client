@@ -298,6 +298,7 @@ export interface FileActionsProps {
   copy: () => void
   copyPaths: () => void
   options: RequestOptions
+  ev: Emitter,
 }
 
 const iconCopy = "M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"
@@ -319,7 +320,7 @@ export function FileActions(val : FileActionsProps) {
 
     if(!init) setAnimation(shouldShow ? "animate-popIn" : "animate-popOut")
     else setInit(false)
-  }, [val.checked, animation]); // eslint-disable-rule
+  }, [val.checked, animation]); // eslint-disable-line
 
   const copy = val.copy;
   const copyPaths = val.copyPaths
@@ -336,9 +337,8 @@ export function FileActions(val : FileActionsProps) {
     const src = val.checked[0];
     const dst = val.checked[1];
 
-    FsVerify(val.options, { Src: src, Dst: dst }).then(() => {
-      new Notification("the two files are the same")
-    }).catch(() => new Notification("files do not match"));
+    FsVerify(val.options, { Src: src, Dst: dst }).then(() => val.ev.emit("toast-insert", `${src} and ${dst} are the same`))
+                                                 .catch(() => val.ev.emit("toast-insert", `${src} isn't the same as ${dst}`));
   }
 
   //console.log(animation);

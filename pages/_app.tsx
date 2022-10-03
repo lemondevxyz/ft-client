@@ -255,11 +255,11 @@ function MyApp({ Component }: AppProps<PageProps>) {
     let updateFs = (e : string) => ev.emit("fs-update", e);
 
     sse.addEventListener("fs-mkdir", (e) => {
-      ev.emit("toast-insert", "Directory ${e.data as string} created")
+      ev.emit("toast-insert", `Directory ${e.data as string} created`)
       updateFs(e.data as string)
     });
     sse.addEventListener("fs-remove", (e) => {
-      ev.emit("toast-insert", "${e.data as string} was removed")
+      ev.emit("toast-insert", `${e.data as string} was removed`)
       updateFs(e.data as string)
     });
     sse.addEventListener("fs-move", (e : MessageEvent<string>) => {

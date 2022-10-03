@@ -114,6 +114,12 @@ export function OperationErrorOverlay(props: OperationProps) {
     const replace = () => props.proceed(OperationBehaivor.Replace)
     const continueFn = () => props.proceed(OperationBehaivor.Continue)
 
+    const cancelFn = () => {
+        OperationExit(props.options, {
+            id: props.id,
+        })
+    }
+
     useEffect(() => {
         if(props.err === undefined) {
 
@@ -127,18 +133,25 @@ export function OperationErrorOverlay(props: OperationProps) {
         }
     }, [props.err]);
 
+    const isFile = props.err && props.err.error === ErrDstAlreadyExists
+
     return !show ? <div></div> : <div className={`w-full h-full bg-yellow-400 top-0 left-0 absolute z-20 p-4 flex flex-col items-center justify-center ${animate}`}>
-        <h1 className="text-xl mb-auto"><strong className="text-2xl font-bold">File already exists:</strong><br /> {props.src.length > 0 && props.src[props.index] && props.src[props.index].name}</h1>
+        <h1 className="text-xl mb-auto"><strong className="text-2xl font-bold">Error: {props.err && props.err.error}</strong><br /></h1>
+        <div className="text-left mr-auto">source: {props.src.length > 0 && props.src[props.index] && props.src[props.index].absPath}</div>
+        <div className="text-left mr-auto">destination: {props.err && props.err.dst}</div>
         <h2 className="text-left w-full text-xl font-bold">Choose an action</h2>
-        <div className="flex flex-wrap w-full overflow-hidden">
-            <div className="my-1">
-                {IconTextButton({text: "Skip File", click: skip, icon: iconSkip})}
+        <div className="flex flex-wrap w-full overflow-hidden text-sm">
+            <div className={`my-1 ${!isFile && "hidden"}`}>
+                {IconTextButton({text: "Skip File", click: skip, icon: iconSkip, dark: true})}
+            </div>
+            <div className={`my-1 ${!isFile && "hidden"}`}>
+                {IconTextButton({text: "Replace", click: replace, icon: iconReplace, dark: true})}
             </div>
             <div className="my-1">
-                {IconTextButton({text: "Replace", click: replace, icon: iconReplace})}
+                {IconTextButton({text: "Try Again", click: continueFn, icon: iconContinue, dark: true})}
             </div>
             <div className="my-1">
-                {IconTextButton({text: "Proceed", click: continueFn, icon: iconContinue})}
+                {IconTextButton({text: "Cancel Operation", click: cancelFn, icon: iconClose, dark: true})}
             </div>
         </div>
         <div className="flex items-center justify-center my-1 text-xl">
