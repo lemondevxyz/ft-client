@@ -53,11 +53,50 @@ export interface FsReadDirValue {
   files: FsOsFileInfo[]
 }
 
+export interface Map<T> {
+  [name: string]: T
+}
+
 export function FsReadDir(options: RequestOptions, val: FsGenericData) : Promise<FsReadDirValue> {
   return new Promise((resolve, reject) => {
-    GenericRequest({
-      url: FsURL(options.host, "readdir"),
-      id: options.id}, val).then((resp) => resp.json()).then((data) => resolve(data as FsReadDirValue)).catch((err) => reject(err));
+    const eTag : string = JSON.parse(localStorage.getItem("etags") || "{}")[val.Name] || "*";
+    const value : FsOsFileInfo[]|undefined = JSON.parse(localStorage.getItem("cache") || "[]")[val.Name];
+//   GenericRequest({
+//     url: FsURL(options.host, "readdir"),
+//     id: options.id}, val).then((resp) => resp.json()).then((data) => resolve(data as FsReadDirValue)).catch((err) => reject(err));
+
+    let headers : Map<string> = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${options.id}`}
+    if(eTag !== "*" && value !== undefined)
+      headers["If-None-Match"] = eTag
+
+    fetch(FsURL(options.host, "readdir"), {
+      method: "post",
+      body: JSON.stringify(val),
+      headers,
+    }).then((p: Response) => {
+      if(p.status !== 304 && p.status !== 200) return reject(p)
+      else if(p.status === 304) return resolve({files: value as FsOsFileInfo[]})
+
+      const eTagMap : Map<string> = JSON.parse(localStorage.getItem("etags") || "{}");
+      const eTag = p.headers.get("ETag")
+      console.log(p.headers)
+      if(eTag) eTagMap[val.Name] = eTag;
+
+      localStorage.setItem("etags", JSON.stringify(eTagMap));
+
+      return p.json()
+    }).then((p : FsReadDirValue) => {
+      const cacheList : Map<FsOsFileInfo[]> = JSON.parse(localStorage.getItem("cache") || "{}")
+      cacheList[val.Name] = p.files
+
+      localStorage.setItem("cache", JSON.stringify(cacheList))
+
+      resolve(p);
+    }).catch((e) => reject(e))
+
   })
 }
 
