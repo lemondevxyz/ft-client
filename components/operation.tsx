@@ -133,11 +133,18 @@ export function OperationErrorOverlay(props: OperationProps) {
         }
     }, [props.err]);
 
-    const isFile = props.err && props.err.error === ErrDstAlreadyExists
 
-    return !show ? <div></div> : <div className={`w-full h-full bg-yellow-400 top-0 left-0 absolute z-20 p-4 flex flex-col items-center justify-center ${animate}`}>
-        <h1 className="text-xl mb-auto"><strong className="text-2xl font-bold">Error: {props.err && props.err.error}</strong><br /></h1>
-        <div className="text-left mr-auto">source: {props.src.length > 0 && props.src[props.index] && props.src[props.index].absPath}</div>
+    const srcAbsPath : string | boolean = props.src.length > 0 && props.src[props.index] && props.src[props.index].absPath
+    const srcPath : string | boolean = props.src.length > 0 && props.src[props.index] && props.src[props.index].path
+
+    const isFile = props.err && props.err.error === ErrDstAlreadyExists
+    return !show ? <div></div> : <div className={`w-full h-full overflow-hidden bg-yellow-400 top-0 left-0 absolute z-20 p-4 flex flex-col items-center justify-center ${animate}`}>
+        <h1 className="h-12 w-full text-2xl truncate" aria-label={props.err && props.err.error} title={props.err && props.err.error}>
+            <strong className="font-bold ">{props.err && "Error: " + props.err.error}</strong><br /></h1>
+        <div className="text-left mr-auto" title={srcAbsPath || ""} aria-label={srcAbsPath || ""}>
+            <span>source:&nbsp;</span>
+            {srcPath && <span>{srcPath}</span>}
+        </div>
         <div className="text-left mr-auto">destination: {props.err && props.err.dst}</div>
         <h2 className="text-left w-full text-xl font-bold">Choose an action</h2>
         <div className="flex flex-wrap w-full overflow-hidden text-sm">
@@ -298,43 +305,3 @@ export function OperationSidebar(val : OperationSidebarProps) {
         </div>
     </div>
 }
-
-/*
-export interface OperationDialogProps {
-    show: boolean
-    done: (v : string) => void
-    close: () => void
-    list: OperationProps[]
-}
-
-export function OperationDialog(val: OperationDialogProps) {
-    return Dialog({
-        buttons: [],
-        show: val.show,
-        close: val.close,
-        title: "Choose an Operation",
-        child: <table className="table-fixed font-mono w-full">
-            <thead>
-                <tr className="h-12">
-                    <td className="w-32">ID</td>
-                    <td>Destination</td>
-                    <td className="w-32">File count</td>
-                    <td className="w-32">Time Added</td>
-                    <td className="w-12">Size</td>
-                </tr>
-            </thead>
-            <tbody>
-        {val.list.map((v, i) => {
-            return <tr className="h-12" key={i} onClick={() => val.done(v.id)} style={{backgroundColor: "rgba(255, 255, 255, 0.15)"}}>
-                <td className="ml-2 overflow-hidden" aria-label={v.id} title={v.id}>&nbsp;{(v.id.length > 10 ? v.id.slice(0, 9) + ".." : v.id)}</td>
-                <td>{v.dst}</td>
-                <td>{v.src.length}</td>
-                <td>{HumanDate(v.started)}</td>
-                <td>{v.size}</td>
-            </tr>
-        })}
-            </tbody>
-        </table>
-    })
-}
-*/

@@ -152,6 +152,7 @@ export default function Fs(val : PageProps) {
   const dirDialogComponent = BrowserDirectoryDialog({
     options: reqOptions,
     base: "/",
+    curPwd: pwd,
     dialogFn: (path: string) => {
       setDirDialog(path);
 

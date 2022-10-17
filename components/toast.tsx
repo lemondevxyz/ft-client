@@ -23,7 +23,7 @@ export function Toast(val : ToastProps) {
         return () => { val.ev.off("toast-remove", fn) }
     }, [animate]) // eslint-disable-line
 
-    return <div className={`bg-dark mb-2 rounded-lg shadow text-center p-2 px-4 ${animate}`} key={val.id}
+    return <div className={`bg-dark mb-2 rounded-lg shadow text-left p-2 px-4 ${animate}`} key={val.id}
                 onClick={ () => val.ev.emit("toast-remove", val.text) }>
         {val.text}
     </div>

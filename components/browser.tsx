@@ -229,10 +229,11 @@ export interface BrowserDirectoryDialogProps {
   show: boolean
   close: () => any
   options: RequestOptions
+  curPwd?: string
 }
 
 export function BrowserDirectoryDialog(val: BrowserDirectoryDialogProps) {
-  const [ pwd, setPwd ] = useState<string>(val.base);
+  const [ pwd, setPwd ] = useState<string>(val.curPwd || val.base);
   const pwdSetter = (pwd : string) => {
     if(pwd.indexOf(val.base) !== -1) setPwd(pwd);
   }
@@ -244,6 +245,10 @@ export function BrowserDirectoryDialog(val: BrowserDirectoryDialogProps) {
     filter: (val : FsOsFileInfo) : boolean => IsDirectory(val),
     options: val.options,
   }
+
+  useEffect(() => {
+    if(val.show && val.curPwd) pwdSetter(val.curPwd);
+  }, [val.show]) // eslint-disable-line
 
   return BrowserDialog({
     title: "Select a directory",
@@ -342,6 +347,8 @@ export function FileActions(val : FileActionsProps) {
     const src = val.checked[0];
     const dst = val.checked[1];
 
+    val.ev.emit("toast-insert", `sending verification request for ${src} and ${dst}
+this could take some time`)
     FsVerify(val.options, { Src: src, Dst: dst }).then(() => val.ev.emit("toast-insert", `${src} and ${dst} are the same`)).catch(() => val.ev.emit("toast-insert", `${src} isn't the same as ${dst}`));
   }
 
