@@ -151,7 +151,7 @@ export default function Fs(val : PageProps) {
   const [dirDialog, setDirDialog] = useState("null");
   const dirDialogComponent = BrowserDirectoryDialog({
     options: reqOptions,
-    base: "/home/tim",
+    base: "/",
     dialogFn: (path: string) => {
       setDirDialog(path);
 
