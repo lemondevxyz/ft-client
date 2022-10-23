@@ -1,4 +1,5 @@
 import '../styles/globals.css'
+import getConfig from 'next/config'
 import type { AppProps } from 'next/app'
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
@@ -7,7 +8,8 @@ import EventEmitter from 'events';
 import { EventFsMove, FsRemove, HumanSize } from '../api/fs';
 import { Mutex } from 'async-mutex'
 
-export const globalHost = "localhost:8080"
+const { publicRuntimeConfig } = getConfig();
+export const globalHost : string = publicRuntimeConfig.host
 
 export type Map<T> = {
   [name: string]: T
