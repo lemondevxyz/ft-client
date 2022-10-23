@@ -46,7 +46,7 @@ function MyApp({ Component }: AppProps<PageProps>) {
 
     setInit(false);
 
-    const sse = new EventSource(`http://${globalHost}/sse`);
+    const sse = new EventSource(`http://${globalHost}/api/v0/sse`);
     sse.onerror = () => {
       mtx.runExclusive(() => {
         setId("")

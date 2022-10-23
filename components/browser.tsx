@@ -4,6 +4,7 @@ import { RequestOptions } from '../api/generic';
 import { Emitter } from '../pages/_app';
 import { IconTextButton } from './button';
 import { Dialog } from './dialog';
+import Link from 'next/link';
 
 export interface FileProps {
   f: FsOsFileInfo,
@@ -71,6 +72,11 @@ export function FileComponent(val: FileProps) {
     })
   }
 
+  const elem : ReactElement[] = <>
+    {FileComponentIcon(IsDirectory(val.f))}
+    <FileComponentFilename {...val.f} />
+  </>
+
   return <tr className={`p-1 font-mono w-full`}>
     {val.setChecked !== undefined &&
      <td className="w-6">
@@ -79,8 +85,8 @@ export function FileComponent(val: FileProps) {
     <td className={`flex items-center my-2 w-full select-none ${IsDirectory(val.f) ? "cursor-pointer" : "cursor-default"}`}
         onClick={ () => val.onClick !== undefined && val.onClick() }
         onContextMenu={ (e) => { e.preventDefault(); renameFile(val.f.absPath)}}>
-      {FileComponentIcon(IsDirectory(val.f))}
-      <FileComponentFilename {...val.f} />
+      { !IsDirectory(val.f) ? <a className={`flex items-center w-full select-none cursor-pointer`}
+                                 target="_blank" href={`http://${val.options.host}/files/${val.f.absPath}`}>{elem}</a> : elem }
     </td>
     <td>{val.showTime && <pre className="ml-auto mr-2">{ FileComponentDate(val.f) }</pre>}</td>
     <td className={`${IsDirectory(val.f) && "cursor-pointer"}`}
