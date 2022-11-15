@@ -1,17 +1,17 @@
 import { ReactElement, useState, useEffect } from 'react';
-import { ErrDstAlreadyExists, OperationBehaivor, OperationExit, OperationObject, OperationPause, OperationResume, OperationStatus } from '../api/operation';
+import { ErrDstAlreadyExists, OperationBehaivor, OperationExit, OperationObject, OperationPause, OperationResume, OperationSetIndex, OperationStatus } from '../api/operation';
 import { IconButton, IconTextButton } from './button';
 import { FsOsFileInfo, HumanSize, IsDirectory } from '../api/fs';
-import { FileComponentIcon, iconClose } from './browser';
-import { RequestOptions } from '../api/generic';
-import { Emitter, Map } from '../pages/_app';
+import { useSWRConfig } from 'swr';
+import EventEmitter from 'events';
+import { iconClose, FileComponentIcon } from './file';
 
 export function StatusColor(val : OperationStatus) : string {
     switch(val) {
-            case OperationStatus.Started: return "lightgreen"
-            case OperationStatus.Paused: return "yellow"
-            case OperationStatus.Finished: return "cyan"
-            case OperationStatus.Aborted: return "tomato"
+    case OperationStatus.Started: return "lightgreen"
+    case OperationStatus.Paused: return "yellow"
+    case OperationStatus.Finished: return "cyan"
+    case OperationStatus.Aborted: return "tomato"
     }
 
     return "#f1f1f1"
@@ -73,12 +73,12 @@ export function FileLink(setPwd: (val: string) => void, link : string, name : st
 
 export interface OperationProps extends OperationObject {
     //openDialog: () => void
-    options: RequestOptions
     setPwd: (val : string) => void
     proceed: (val : OperationBehaivor) => any
     setKeepBehaivor: (val : boolean) => any
 }
 
+//const iconSkip = "M4,5V19L11,12M18,5V19H20V5M11,5V19L18,12"
 const iconPause = "M14,19H18V5H14M6,19H10V5H6V19Z";
 const iconResume = "M8,5.14V19.14L19,12.14L8,5.14Z";
 //const iconCancel =
@@ -109,13 +109,14 @@ function sum(arr : number[]) : number {
 export function OperationErrorOverlay(props: OperationProps) {
     const [ animate, setAnimate ] = useState("animate-fadeIn");
     const [ show, setShow ] = useState(false);
+    const cfg = useSWRConfig();
 
     const skip = () => props.proceed(OperationBehaivor.Skip)
     const replace = () => props.proceed(OperationBehaivor.Replace)
     const continueFn = () => props.proceed(OperationBehaivor.Continue)
 
     const cancelFn = () => {
-        OperationExit(props.options, {
+        OperationExit(cfg, {
             id: props.id,
         })
     }
@@ -137,7 +138,8 @@ export function OperationErrorOverlay(props: OperationProps) {
     const srcAbsPath : string | boolean = props.src.length > 0 && props.src[props.index] && props.src[props.index].absPath
     const srcPath : string | boolean = props.src.length > 0 && props.src[props.index] && props.src[props.index].path
 
-    const isFile = props.err && props.err.error === ErrDstAlreadyExists
+    const isFile = props.err && props.err.error === ErrDstAlreadyExists;
+
     return !show ? <div></div> : <div className={`w-full h-full overflow-hidden bg-yellow-400 top-0 left-0 absolute z-20 p-4 flex flex-col items-center justify-center ${animate}`}>
         <h1 className="h-12 w-full text-2xl truncate" aria-label={props.err && props.err.error} title={props.err && props.err.error}>
             <strong className="font-bold ">{props.err && "Error: " + props.err.error}</strong><br /></h1>
@@ -171,7 +173,9 @@ export function OperationErrorOverlay(props: OperationProps) {
 export function OperationComponent(props: OperationProps) {
     const [ showFiles, setShowFiles ] = useState(false);
     const [ showLog, setShowLog ] = useState(false);
+
     const size = 256;
+    const cfg = useSWRConfig();
 
     const generateOpProgress = () => {
         const opMaxValue = sum((props.src || []).slice(0, props.index).map((val : FsOsFileInfo) => val.size));
@@ -206,15 +210,21 @@ export function OperationComponent(props: OperationProps) {
     if(props.index !== -1 && props.index < props.src.length)
         src = props.src[props.index];
 
-    const pause = () => OperationPause(props.options, { id: props.id });
-    const resume = () => OperationResume(props.options, { id: props.id });
-    const cancel = () => OperationExit(props.options, { id: props.id });
+    const pause = () => OperationPause(cfg, { id: props.id });
+    const resume = () => OperationResume(cfg, { id: props.id });
+    const cancel = () => OperationExit(cfg, { id: props.id });
+    const skip = () => {
+        OperationSetIndex(cfg, {
+            id: props.id,
+            index: props.index+1 })
+    }
 
-    return <div className="w-96 shadow-lg mx-auto relative" style={{backgroundColor: StatusColor(props.status)}}>
+    return <div className="w-auto max-w-sm shadow-lg mx-auto relative" style={{backgroundColor: StatusColor(props.status)}}>
         <OperationErrorOverlay {...props} />
         <div className="flex flex-col">
             <div className="flex flex-col justify-center">
-                <div className="flex text-xl mx-auto mt-2 mb-4">
+                <div className="flex text-2xl xs:text-xl sm:text-2xl md:text-4xl lg:text-4xl xl:text-4xl mx-auto mt-2 mb-4">
+                    {IconButton({text: "Skip", click: skip, icon: iconSkip})}
                     {IconButton({text: "Pause", click: pause, icon: iconPause})}
                     {IconButton({text: "Resume", click: resume, icon: iconResume})}
                     {IconButton({text: "Cancel", click: cancel, icon: iconClose})}
@@ -251,10 +261,9 @@ export function OperationComponent(props: OperationProps) {
 }
 
 export interface OperationSidebarProps {
-    ops: Map<OperationObject>
-    options: RequestOptions
+    ops: { [key : string] : OperationObject }
     pwdSetter: (val : string) => any,
-    ev: Emitter
+    ev: EventEmitter
     show: boolean
     setShow: (val : boolean) => any
 }
@@ -285,9 +294,8 @@ export function OperationSidebar(val : OperationSidebarProps) {
              onClick={(e) => e.target === e.currentTarget && val.setShow(false)}></div>
         <div className={`w-11/12 md:w-3/4 lg:w-2/3 xl:w-1/2 h-full bg-light shadow z-10 translate-x-full opacity-0 ${contentAnim}`}>
             <div className="py-24 w-11/12 mx-auto">
-                {Object.values(val.ops).map((op : OperationObject, i : number) : ReactElement|undefined => {
+                {Object.values(val.ops).map((op : OperationObject) : ReactElement|undefined => {
                     const obj : OperationProps = Object.assign({
-                        options: val.options,
                         setPwd: val.pwdSetter,
                         proceed: (behaivor : OperationBehaivor) => {
                             op.behaivor = behaivor;

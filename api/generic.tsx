@@ -1,4 +1,4 @@
-import EventEmitter from "events";
+import { FullConfiguration, SWRResponse } from "swr/dist/types";
 
 export interface GenericOptions {
     url: string
@@ -10,25 +10,27 @@ export interface RequestOptions {
     id: string
 }
 
-export function GenericRequest(options : GenericOptions, val : any) : Promise<Response> {
-    return new Promise((resolve, reject) =>
-        fetch(options.url, {
-            method: "post",
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'Authorization': `Bearer ${options.id}`},
-            body: JSON.stringify(val),
-        }).then((p: Response) => {
-            if(p.status !== 200) reject(p)
-            else resolve(p)
-        }).catch((e) => reject(e))
-    );
+export function ApiURL(route : string) : string {
+    return `/api/v0/${route}`;
 }
 
-export function ApiURL(host : string, route : string) : string {
-    return `http://${host}/api/v0/${route}`;
+export interface Response<T> extends Parameters<T> {
+  isLoading: boolean,
 }
+
+interface Parameters<T> {
+  data: T,
+  error: any,
+}
+
+export function returnResponse({ data, error } : SWRResponse<any, any>) : Response<any> {
+  return {data, isLoading: !data && !error, error}; }
+
+export function returnPromise(cfg : FullConfiguration, earl : string, val : any) : Promise<any> {
+    const { fetcher } = cfg
+    if(fetcher === undefined) return Promise.reject("fetcher is undefined");
+
+    return fetcher(earl, val) as Promise<any> }
 
 // export function GenerateRequestFunction(path: string, val : <T>) : (options: RequestOptions, val: <T>) => Promise<Response> {
 //     Map

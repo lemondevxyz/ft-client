@@ -1,11 +1,11 @@
 import { Mutex } from "async-mutex";
+import EventEmitter from "events";
 import { useEffect, useState } from "react";
-import { Emitter } from "../pages/_app";
 
 export interface ToastProps {
     id: number
     text: string
-    ev: Emitter
+    ev: EventEmitter
 }
 
 export function Toast(val : ToastProps) {
@@ -30,7 +30,7 @@ export function Toast(val : ToastProps) {
 }
 
 export interface ToastContainerProps {
-    ev: Emitter
+    ev: EventEmitter
 }
 
 export function ToastContainer({ev} : ToastContainerProps) {

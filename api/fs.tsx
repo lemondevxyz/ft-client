@@ -1,5 +1,7 @@
 //import EventEmitter from 'events';
-import { ApiURL, GenericRequest, RequestOptions } from './generic';
+import { ApiURL, returnResponse, Response, returnPromise } from './generic';
+import useSWR from 'swr';
+import { FullConfiguration } from 'swr/dist/types';
 
 export interface FsOsFileInfo {
   name: string,
@@ -15,39 +17,48 @@ export interface FsGenericData {
   Name: string
 }
 
-export function FsURL(host : string, route : string) : string {
-  return ApiURL(host, "fs/"+route)
+export function FsURL(route : string) : string {
+  return ApiURL("fs/"+route)
 }
 
 export interface FsSizeValue {
   size: number
 }
 
-export function FsSize(options: RequestOptions, val: FsGenericData) : Promise<FsSizeValue> {
-  return new Promise((resolve, reject) => {
-    GenericRequest({url: FsURL(options.host, "size"), id: options.id}, val).then((e : Response) => e.json()).then((data : FsSizeValue) => {
-      resolve(data);
-    }).catch((e) => reject(e));
-  })
-}
+export function PromiseFsSize(cfg : FullConfiguration, val : FsGenericData) : Promise<FsSizeValue> {
+  return returnPromise(cfg, FsURL("size"), val) as Promise<FsSizeValue> }
 
-export function FsRemove(options: RequestOptions, val: FsGenericData) : Promise<Response> {
-  return GenericRequest({url: FsURL(options.host, "remove"), id: options.id}, val) };
-export function FsMkdir(options: RequestOptions, val: FsGenericData) : Promise<Response> {
-  return GenericRequest({url: FsURL(options.host, "mkdir"), id: options.id}, val) }
+export function FsSize(val: FsGenericData) : Response<FsSizeValue> {
+  return returnResponse(useSWR([FsURL("size"), val])) as Response<FsSizeValue>; }
+
+export function PromiseFsRemove(cfg : FullConfiguration, val : FsGenericData) : Promise<any> {
+  return returnPromise(cfg, FsURL("remove"), val) as Promise<any> }
+
+export function FsRemove(val: FsGenericData) : Response<any> {
+  return returnResponse(useSWR([FsURL("remove"), val])); };
+
+export function PromiseFsMkdir(cfg : FullConfiguration, val : FsGenericData) : Promise<any> {
+  return returnPromise(cfg, FsURL("mkdir"), val) as Promise<any> }
+
+export function FsMkdir(val: FsGenericData) : Response<any> {
+  return returnResponse(useSWR([FsURL("mkdir"), val])); }
 
 export interface FsMoveData {
   Src: string
   Dst: string
 }
 
-export function FsVerify(options: RequestOptions, val: FsMoveData) : Promise<Response> {
-  return GenericRequest({url: FsURL(options.host, "verify"), id: options.id}, val);
-}
+export function PromiseFsVerify(cfg : FullConfiguration, val : FsMoveData) : Promise<any> {
+  return returnPromise(cfg, FsURL("verify"), val) as Promise<any> }
 
-export function FsMove(options: RequestOptions, val: FsMoveData) : Promise<Response> {
-  return GenericRequest({url: FsURL(options.host, "move"), id: options.id}, val)
-}
+export function FsVerify(val: FsMoveData) : Response<any> {
+  return returnResponse(useSWR([FsURL("verify"), val])) }
+
+export function PromiseFsMove(cfg : FullConfiguration, val : FsMoveData) : Promise<any> {
+  return returnPromise(cfg, FsURL("move"), val) as Promise<any> }
+
+export function FsMove(val: FsMoveData) : Response<any> {
+  return returnResponse(useSWR([FsURL("move"), val])) }
 
 export interface FsReadDirValue {
   files: FsOsFileInfo[]
@@ -57,48 +68,52 @@ export interface Map<T> {
   [name: string]: T
 }
 
-export function FsReadDir(options: RequestOptions, val: FsGenericData) : Promise<FsReadDirValue> {
-  return new Promise((resolve, reject) => {
-    const eTag : string = JSON.parse(localStorage.getItem("etags") || "{}")[val.Name] || "*";
-    const value : FsOsFileInfo[]|undefined = JSON.parse(localStorage.getItem("cache") || "[]")[val.Name];
-//   GenericRequest({
-//     url: FsURL(options.host, "readdir"),
-//     id: options.id}, val).then((resp) => resp.json()).then((data) => resolve(data as FsReadDirValue)).catch((err) => reject(err));
+export function PromiseFsReaddir(cfg : FullConfiguration, val : FsGenericData) : Promise<FsReadDirValue> {
+  return cfg!.fetcher!(FsURL("readdir"), val) as Promise<FsReadDirValue> }
 
-    let headers : Map<string> = {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${options.id}`}
-    if(eTag !== "*" && value !== undefined)
-      headers["If-None-Match"] = eTag
+export function FsReadDir(val: FsGenericData) : Response<FsReadDirValue> {
+  return returnResponse(useSWR([FsURL("readdir"), val])) as Response<FsReadDirValue> }
 
-    fetch(FsURL(options.host, "readdir"), {
-      method: "post",
-      body: JSON.stringify(val),
-      headers,
-    }).then((p: Response) => {
-      if(p.status !== 304 && p.status !== 200) return reject(p)
-      else if(p.status === 304) return resolve({files: value as FsOsFileInfo[]})
 
-      const eTagMap : Map<string> = JSON.parse(localStorage.getItem("etags") || "{}");
-      const eTag = p.headers.get("ETag")
-      console.log(p.headers)
-      if(eTag) eTagMap[val.Name] = eTag;
-
-      localStorage.setItem("etags", JSON.stringify(eTagMap));
-
-      return p.json()
-    }).then((p : FsReadDirValue) => {
-      const cacheList : Map<FsOsFileInfo[]> = JSON.parse(localStorage.getItem("cache") || "{}")
-      cacheList[val.Name] = p.files
-
-      localStorage.setItem("cache", JSON.stringify(cacheList))
-
-      resolve(p);
-    }).catch((e) => reject(e))
-
-  })
-}
+// export function FsReadDir(options: RequestOptions, val: FsGenericData) : Promise<FsReadDirValue> {
+//   return new Promise((resolve, reject) => {
+//     const eTag : string = JSON.parse(localStorage.getItem("etags") || "{}")[val.Name] || "*";
+//     const value : FsOsFileInfo[]|undefined = JSON.parse(localStorage.getItem("cache") || "[]")[val.Name];
+//
+//     let headers : Map<string> = {
+//         'Content-Type': 'application/json',
+//         'Accept': 'application/json',
+//         'Authorization': `Bearer ${options.id}`}
+//     if(eTag !== "*" && value !== undefined)
+//       headers["If-None-Match"] = eTag
+//
+//     fetch(FsURL(options.host, "readdir"), {
+//       method: "post",
+//       body: JSON.stringify(val),
+//       headers,
+//     }).then((p: Response) => {
+//       if(p.status !== 304 && p.status !== 200) return reject(p)
+//       else if(p.status === 304) return resolve({files: value as FsOsFileInfo[]})
+//
+//       const eTagMap : Map<string> = JSON.parse(localStorage.getItem("etags") || "{}");
+//       const eTag = p.headers.get("ETag")
+//       console.log(p.headers)
+//       if(eTag) eTagMap[val.Name] = eTag;
+//
+//       localStorage.setItem("etags", JSON.stringify(eTagMap));
+//
+//       return p.json()
+//     }).then((p : FsReadDirValue) => {
+//       const cacheList : Map<FsOsFileInfo[]> = JSON.parse(localStorage.getItem("cache") || "{}")
+//       cacheList[val.Name] = p.files
+//
+//       localStorage.setItem("cache", JSON.stringify(cacheList))
+//
+//       resolve(p);
+//     }).catch((e) => reject(e))
+//
+//   })
+// }
 
 export interface EventFsMove {
   old: string
@@ -146,11 +161,8 @@ export function HumanDate(d : Date) {
   const month = months[d.getMonth()].slice(0, 3);
 
   if(d.getFullYear() == new Date().getFullYear())
-    // Sep 19 19:14
-    // Sep  9 19:14
     return `${month} ${day} ${d.toTimeString().slice(0, 5)}`;
-  // Sep 19  2022
-  // Sep  9  2022
+
   return `${month} ${day}  ${d.getFullYear()}`
 }
 

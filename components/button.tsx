@@ -15,7 +15,7 @@ export function IconTextButton(val : ButtonProps) {
 }
 
 export function IconButton(val : ButtonProps) {
-    return <div className="cursor-pointer text-black opacity-75 hover:opacity-100 px-2 py-2 text-4xl" style={{transition: "opacity 300ms ease-in-out"}} title={val.text} aria-label={val.text} onClick={() => val.click && val.click()}>
+    return <div className="cursor-pointer text-black opacity-75 hover:opacity-100 px-2 py-2" style={{transition: "opacity 300ms ease-in-out"}} title={val.text} aria-label={val.text} onClick={() => val.click && val.click()}>
         <svg style={{width: '1em', height: '1em', fill: 'currentColor'}} viewBox="0 0 24 24">
             <path d={val.icon} />
         </svg>

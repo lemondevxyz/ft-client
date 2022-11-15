@@ -4,7 +4,8 @@ const nextConfig = {
   swcMinify: true,
   publicRuntimeConfig: {
     // Change this if you have a different server
-    host: 'localhost:8080',
+    api_host: 'http://localhost:8080',
+    base: "/",
   },
 }
 

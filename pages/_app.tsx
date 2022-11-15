@@ -3,52 +3,130 @@ import getConfig from 'next/config'
 import type { AppProps } from 'next/app'
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { EventOperationLog, EventOperationError, EventOperationProgress, EventOperationStatus, OperationObject, OperationSize, OperationSizeValue, OperationBehaivor, ErrDstAlreadyExists, OperationProceed, OperationPause, OperationSetSources, OperationSetIndex, OperationResume } from '../api/operation';
+import { EventOperationLog, EventOperationError, EventOperationProgress, OperationObject, OperationBehaivor, ErrDstAlreadyExists, OperationSetIndex, OperationResume } from '../api/operation';
 import EventEmitter from 'events';
-import { EventFsMove, FsRemove, HumanSize } from '../api/fs';
+import { EventFsMove, FsGenericData, HumanSize, PromiseFsRemove } from '../api/fs';
 import { Mutex } from 'async-mutex'
+import { SWRConfig, useSWRConfig } from 'swr';
+import { Loader } from '../components/loading';
+import { AnimatedComponent } from '../components/animated';
+import { ToastContainer } from '../components/toast';
 
 const { publicRuntimeConfig } = getConfig();
-export const globalHost : string = publicRuntimeConfig.host
+export const globalHost : string = publicRuntimeConfig.api_host
 
-export type Map<T> = {
+export type ObjectMap<T> = {
   [name: string]: T
 }
 
 export interface PageProps {
   id: string
-  ops: Map<OperationObject>
-  ev: Emitter
+  ops: ObjectMap<OperationObject>
+  ev: EventEmitter
   host: string
 }
 
-export interface Emitter {
-  on(eventName: string | symbol, listener: (...args: any[]) => void): this;
-  off(eventName: string | symbol, listener: (...args: any[]) => void): this;
-  emit(eventName: string | symbol, ...args: any[]): boolean;
+function SWRFetcher(sseId : string, mEtag : Map<string, any>, mData : Map<string, any>) {
+  return async (url : string, body : any) => {
+    let etag = ""
+    console.log(url)
+    if(url.endsWith("readdir"))
+      etag = mEtag.get((body as FsGenericData).Name) || ""
+
+    if(etag.length > 0)
+      mData.get((body as FsGenericData).Name).length == 0 &&
+             mData.delete((body as FsGenericData).Name)
+
+    const headers : HeadersInit = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Authorization': `Bearer ${sseId}`,
+    }
+
+    if(etag.length > 0) headers["If-None-Match"] = etag;
+
+    const res = await fetch(publicRuntimeConfig.api_host+ url, {
+      headers,
+      body: JSON.stringify(body),
+      method: "POST",
+    });
+
+    if(res.status == 304)
+      return Promise.resolve(mData.get((body as FsGenericData).Name))
+    if(!res.ok) throw new Error(res.statusText)
+
+    return new Promise((resolv, _) => {
+      if(url.endsWith("readdir") && res.headers.get!("ETag") !== null) {
+        mEtag.set((body as FsGenericData).Name, res.headers.get("ETag"))
+        res.json().then((val : any) => {
+          mData.set((body as FsGenericData).Name, val)
+          resolv(val)
+        })
+      } else {
+        res.json().then((val : any) =>
+          resolv(val))
+      }
+    })
+  }
+}
+
+class LocalStorageMap extends Map<any, any> {
+  name: string
+  constructor(name : string, map : Map<any, any>) {
+    super(map);
+    this.name = name;
+  }
+
+  set(key : any, val : any) {
+    super.set(key, val)
+
+    if(this.name === undefined) return this;
+
+    localStorage.setItem(this.name, JSON.stringify(Array.from(super.entries())))
+    return this;
+  }
+}
+
+function SWRCache(name : string) {
+  let map = new Map();
+  if(typeof window !== 'undefined' && localStorage) {
+    map = new Map(JSON.parse(localStorage.getItem(name) || '[]'));
+
+    map = new LocalStorageMap(name, map)
+  }
+
+  return map
 }
 
 function MyApp({ Component }: AppProps<PageProps>) {
   const router = useRouter();
   const [ sseId, setId ] = useState("");
-  const [ sseOps, setOps ] = useState<Map<OperationObject>>({});
+  const [ sseOps, setOps ] = useState<ObjectMap<OperationObject>>({});
   const [ init, setInit ] = useState(true);
   const [ ev, _ ] = useState(new EventEmitter());
+
+  const mEtag = SWRCache("etag");
+  const mData = SWRCache("data");
+
+  const cfg = Object.assign({}, useSWRConfig(), {
+    fetcher: SWRFetcher(sseId, mEtag, mData),
+  });
 
   useEffect(() => { // eslint-disable-line
     if(!router.isReady || !init) return;
 
     const mtx = new Mutex();
 
-    let ops : Map<OperationObject> = {};
-    const opsSetter = (val : Map<OperationObject>) => {
+    let ops : ObjectMap<OperationObject> = {};
+    const opsSetter = (val : ObjectMap<OperationObject>) => {
       setOps(val);
       ops = val;
+//      window.ops = val;
     }
 
     setInit(false);
 
-    const sse = new EventSource(`http://${globalHost}/api/v0/sse`);
+    const sse = new EventSource(`${globalHost}/api/v0/sse`);
     sse.onerror = () => {
       mtx.runExclusive(() => {
         setId("")
@@ -69,7 +147,6 @@ function MyApp({ Component }: AppProps<PageProps>) {
 
     ev.addListener("operation-file-exist-err", ({ opId } : {opId: string}) => {
       mtx.runExclusive(() => {
-        const options = {host:globalHost, id:id};
         const myOp = {...ops[opId]};
 
         const writeChanges = (op: OperationObject) => {
@@ -91,38 +168,30 @@ function MyApp({ Component }: AppProps<PageProps>) {
         switch(myOp.behaivor) {
           case OperationBehaivor.Replace:
             const path = myOp.dst.split("/").concat(myOp.src[myOp.index].path.split("/")).join("/");
-            FsRemove(options, { Name: path }).then(() => {
-              OperationProceed(options, { id: opId }).then(() => {
+            PromiseFsRemove(cfg, { Name: path }).then(() => {
+              OperationResume(cfg, { id: opId }).then(() => {
                 writeChanges(myOp)
               });
             });
             break;
           case OperationBehaivor.Skip:
-            console.log("skippy", myOp.index)
-            OperationPause(options, { id: opId }).then(() => {
-              OperationSetIndex(options, {id: opId, index: myOp.index+1}).then(() => {
-                OperationResume(options, {id: opId}).then(() => {
-                  OperationProceed(options, {id: opId}).then(() => {
-                    writeChanges(myOp)
-                  });
-                })
-              })
+            OperationSetIndex(cfg, {id: opId, index: myOp.index+1}).then(() => {
+              OperationResume(cfg, {id: opId}).then(() => {
+                writeChanges(myOp)
+              });
             })
             break;
           case OperationBehaivor.Continue:
-            OperationProceed(options, {id: opId}).then(() => {
+            OperationResume(cfg, {id: opId}).then(() => {
               writeChanges(myOp)
             });
             break;
         }
-
       })
     })
 
-    let id = ""
     sse.addEventListener("id", (e : MessageEvent<string>) => {
       setId(e.data);
-      id = e.data;
     });
 
     sse.addEventListener("operation-log", function(e : MessageEvent<string>) {
@@ -145,7 +214,7 @@ function MyApp({ Component }: AppProps<PageProps>) {
 
     sse.addEventListener("operation-all", function(e : MessageEvent<string>) {
       mtx.runExclusive(() => {
-        let map : Map<OperationObject> = JSON.parse(e.data);
+        let map : ObjectMap<OperationObject> = JSON.parse(e.data);
         const myOps = {...ops};
         Object.values(map).forEach((op : OperationObject) => {
           op.started = new Date();
@@ -272,17 +341,36 @@ function MyApp({ Component }: AppProps<PageProps>) {
     })
   }) // eslint-disable-line
 
-  const pageProps = {
+  const pageProps : PageProps = {
     id: sseId,
     ops: sseOps,
-    ev: ev as Emitter,
+    ev,
     host: globalHost,
   }
 
+  const [show, setShow] = useState(false);
 
-  return <div className="relative">
-    { sseId.length > 0 ? <Component {...pageProps} /> : <p>Waiting for the connection to the server....</p> }
-  </div>
+  return (<SWRConfig
+           value={cfg}>
+    <div className="relative">
+      <AnimatedComponent {...{
+          elem: <Loader />,
+          className: "z-50",
+          classIn: "animate-longFadeIn",
+          classOut: "animate-longFadeOut",
+          show: sseId.length == 0 || !router.isReady,
+          duration: 1000,
+          setShowOutsider: (val : boolean) => {
+            setTimeout(() => setShow(val), 200) },
+          showRightAway: true,
+        }} />
+        {router.isReady && show && <Component {...pageProps} />}
+        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 mx-4 pr-32 w-full sm:pr-none sm:mx-none sm:w-1/2 md:w-1/2 lg:w-1/3 text-white">
+          <ToastContainer {...{ev: ev}} />
+        </div>
+    </div>
+  </SWRConfig>
+  )
 }
 
 export default MyApp

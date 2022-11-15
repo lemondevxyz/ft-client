@@ -1,5 +1,6 @@
-import { ApiURL, RequestOptions, GenericRequest } from './generic';
+import { ApiURL, RequestOptions, returnPromise } from './generic';
 import { FsOsFileInfo } from './fs';
+import { FullConfiguration } from 'swr';
 
 // errors
 export const ErrDstAlreadyExists = "dst file already exists"
@@ -12,8 +13,8 @@ export enum OperationStatus {
     Paused,
 }
 
-export function OperationURL(host: string, route : string) : string {
-    return ApiURL(host, "op/"+route)
+export function OperationURL(route : string) : string {
+    return ApiURL("op/"+route)
 }
 
 export interface OperationSizeValue {
@@ -97,38 +98,32 @@ export interface EventOperationLog {
     message: string
 }
 
-export function OperationNew(options: RequestOptions, val : OperationNewData) : Promise<Response> {
-    return GenericRequest({url: OperationURL(options.host, "new"), id: options.id}, val) }
-export function OperationSetSources(options: RequestOptions, val : OperationSetSourcesData) : Promise<Response> {
-    return GenericRequest({url: OperationURL(options.host, "set-sources"), id: options.id}, val); }
-export function OperationSetIndex(options: RequestOptions, val : OperationSetIndexData) : Promise<Response> {
-    return GenericRequest({url: OperationURL(options.host, "set-index"), id: options.id}, val); }
-export function OperationPause(options: RequestOptions, val : OperationGenericData) : Promise<Response> {
-    return GenericRequest({url: OperationURL(options.host, "status"), id: options.id}, {
-        id: val.id,
-        status: OperationStatus.Paused
-    })}
-export function OperationResume(options: RequestOptions, val : OperationGenericData) : Promise<Response> {
-    return GenericRequest({url: OperationURL(options.host, "status"), id: options.id}, {
-        id: val.id,
-        status: OperationStatus.Started
-    })}
-export function OperationStart(options: RequestOptions, val : OperationGenericData) : Promise<Response> {
-    return GenericRequest({url: OperationURL(options.host, "status"), id: options.id}, {
-        id: val.id,
-        status: OperationStatus.Started
-    })}
-export function OperationExit(options: RequestOptions, val : OperationGenericData) : Promise<Response> {
-    return GenericRequest({url: OperationURL(options.host, "status"), id: options.id}, {
-        id: val.id,
-        status: OperationStatus.Aborted
-    })}
-export function OperationProceed(options: RequestOptions, val : OperationGenericData) : Promise<Response> {
-    return GenericRequest({url: OperationURL(options.host, "proceed"), id: options.id}, val) }
-export function OperationSize(options: RequestOptions, val : OperationGenericData) : Promise<OperationSizeValue> {
-    return new Promise((resolve, reject) => {
-        GenericRequest({url: OperationURL(options.host, "size"), id: options.id}, val).then((data) => data.json()).then((resp) => {
-           resolve(resp as OperationSizeValue);
-        }).catch((err) => reject(err));
-    })
+export function OperationNew(cfg : FullConfiguration, val : OperationNewData) : Promise<Response> {
+    return returnPromise(cfg, OperationURL("new"), val) }
+export function OperationSetSources(cfg : FullConfiguration, val : OperationSetSourcesData) : Promise<Response> {
+    return returnPromise(cfg, OperationURL("set-sources"), val) }
+export function OperationSetIndex(cfg : FullConfiguration, val : OperationSetIndexData) : Promise<Response> {
+    return returnPromise(cfg, OperationURL("set-index"), val) }
+
+interface OperationStatusData {
+    id: string
+    status: OperationStatus,
 }
+
+function PromiseOperationStatus(cfg : FullConfiguration, val : OperationStatusData) : Promise<Response> {
+    return returnPromise(cfg, OperationURL("status"), val) }
+export function OperationResume(cfg : FullConfiguration, val : OperationGenericData) : Promise<Response> {
+    return PromiseOperationStatus(cfg, { id: val.id, status: OperationStatus.Started }) }
+export function OperationStart(cfg : FullConfiguration, val : OperationGenericData) : Promise<Response> {
+    return PromiseOperationStatus(cfg, { id: val.id, status: OperationStatus.Started }) }
+export function OperationExit(cfg : FullConfiguration, val : OperationGenericData) : Promise<Response> {
+    return PromiseOperationStatus(cfg, { id: val.id, status: OperationStatus.Aborted }) }
+export function OperationPause(cfg : FullConfiguration, val : OperationGenericData) : Promise<Response> {
+    return PromiseOperationStatus(cfg, { id: val.id, status: OperationStatus.Paused }) }
+
+export function OperationSize(cfg : FullConfiguration, val : OperationGenericData) : Promise<OperationSizeValue> {
+    return new Promise((resolv, reject) => {
+        returnPromise(cfg, OperationURL("size"), val)
+            .catch((e : Error) => reject(e))
+            .then((d : any) => resolv(d as OperationSizeValue))
+    })}
