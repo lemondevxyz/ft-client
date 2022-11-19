@@ -315,7 +315,10 @@ function MyApp({ Component }: AppProps<PageProps>) {
       })
     });
 
-    let updateFs = (e : string) => ev.emit("fs-update", e);
+    let updateFs = (e : string) => {
+      console.log(e);
+      ev.emit("fs-update", e);
+    }
 
     sse.addEventListener("fs-mkdir", (e) => {
       ev.emit("toast-insert", `Directory ${e.data as string} created`)

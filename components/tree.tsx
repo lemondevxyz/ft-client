@@ -42,8 +42,6 @@ export function Tree(props: TreeObject) : ReactElement[] {
   }
 
   const onContextMenu = function(localPath : string) {
-    console.log("asdfodsafpokasd")
-
     const path = FixPath("/"+localPath)
     props.setPwd(path);
   }

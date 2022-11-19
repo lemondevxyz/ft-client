@@ -1,5 +1,5 @@
 import { ReactElement, useState, useEffect } from 'react';
-import { ErrDstAlreadyExists, OperationBehaivor, OperationExit, OperationObject, OperationPause, OperationResume, OperationSetIndex, OperationSetRateLimit, OperationStatus } from '../api/operation';
+import { OperationBehaivor, OperationExit, OperationObject, OperationPause, OperationResume, OperationSetIndex, OperationSetRateLimit, OperationStatus } from '../api/operation';
 import { IconButton, IconTextButton } from './button';
 import { FsOsFileInfo, HumanSize, IsDirectory, kb, mb, gb, tb } from '../api/fs';
 import { useSWRConfig } from 'swr';
@@ -90,7 +90,7 @@ const iconSkip = "M16,18H18V6H16M6,18L14.5,12L6,6V18Z";
 const iconReplace = "M14,12H19.5L14,6.5V12M8,5H15L21,11V21A2,2 0 0,1 19,23H8C6.89,23 6,22.1 6,21V18H11V20L15,17L11,14V16H6V7A2,2 0 0,1 8,5M13.5,3H4V16H6V18H4A2,2 0 0,1 2,16V3A2,2 0 0,1 4,1H11.5L13.5,3Z";
 const iconDefault = "M13 24C9.74 24 6.81 22 5.6 19L2.57 11.37C2.26 10.58 3 9.79 3.81 10.05L4.6 10.31C5.16 10.5 5.62 10.92 5.84 11.47L7.25 15H8V3.25C8 2.56 8.56 2 9.25 2S10.5 2.56 10.5 3.25V12H11.5V1.25C11.5 .56 12.06 0 12.75 0S14 .56 14 1.25V12H15V2.75C15 2.06 15.56 1.5 16.25 1.5C16.94 1.5 17.5 2.06 17.5 2.75V12H18.5V5.75C18.5 5.06 19.06 4.5 19.75 4.5S21 5.06 21 5.75V16C21 20.42 17.42 24 13 24Z"
 const iconContinue = "M20 16L14.5 21.5L13.08 20.09L16.17 17H10.5C6.91 17 4 14.09 4 10.5S6.91 4 10.5 4H18V6H10.5C8 6 6 8 6 10.5S8 15 10.5 15H16.17L13.09 11.91L14.5 10.5L20 16Z";
-const iconFileGoTo = "M14 2H6C4.9 2 4 2.9 4 4V20C4 20.41 4.12 20.8 4.34 21.12C4.41 21.23 4.5 21.33 4.59 21.41C4.95 21.78 5.45 22 6 22H13.53C13 21.42 12.61 20.75 12.35 20H6V4H13V9H18V12C18.7 12 19.37 12.12 20 12.34V8L14 2M18 23L23 18.5L20 15.8L18 14V17H14V20H18V23Z";
+// const iconFileGoTo = "M14 2H6C4.9 2 4 2.9 4 4V20C4 20.41 4.12 20.8 4.34 21.12C4.41 21.23 4.5 21.33 4.59 21.41C4.95 21.78 5.45 22 6 22H13.53C13 21.42 12.61 20.75 12.35 20H6V4H13V9H18V12C18.7 12 19.37 12.12 20 12.34V8L14 2M18 23L23 18.5L20 15.8L18 14V17H14V20H18V23Z";
 
 export function OperationBehaivorIcon(o : OperationBehaivor) : string {
     switch(o) {
@@ -117,25 +117,31 @@ export interface OperationErrorOverlayProps extends OperationProps {
 }
 
 export function OperationErrorOverlay(props: OperationErrorOverlayProps) {
+    /*
     const cfg = useSWRConfig();
     const skip = () => props.proceed(OperationBehaivor.Skip)
     const continueFn = () => props.proceed(OperationBehaivor.Continue)
+    */
 
     const srcAbsPath = (props.src.length > 0 &&
                         props.src[props.index] &&
                         props.src[props.index].absPath) || "";
-    
+
+    /*
     const dstAbsPath = (props.dst.length > 0 &&
                         props.src[props.index] &&
                         props.dst.split("/").concat(props.src[props.index].path.split("/")).join("/")) || "";
-    
+    */
+
     const srcPath : string | boolean = props.src.length > 0 && props.src[props.index] && props.src[props.index].path
 
+    /*
     const setPwd = (val : string) => {
         return () => {
             props.setPwd(val);
         }
     }
+    */
 
     const elem = <div className={`p-4 flex flex-col items-center justify-center bg-red-700 text-white z-20 min-h-full h-full`}>
         <h1 className="text-4xl font-mono mb-4"><strong>ERROR</strong></h1>
@@ -172,7 +178,6 @@ function OperationRateLimit(props : OperationProps) {
     const cfg = useSWRConfig();
     const [ speed, setSpeed ] = useState(props.rateLimit);
     const [ option, setOption ] = useState(HumanSize(props.rateLimit).split(" ").at(1));
-    const [ div, setDiv ] = useState(1);
 
     const resetOption = (val : number) => HumanSize(val).split(" ").at(1)
 
@@ -189,25 +194,24 @@ function OperationRateLimit(props : OperationProps) {
     
     useEffect(() => {
         setOption(resetOption(props.rateLimit))
-        setDiv(retDev(option))
-        setSpeed(props.rateLimit / retDev(resetOption(props.rateLimit)))
+        setSpeed(props.rateLimit / retDev(resetOption(props.rateLimit) || ""))
     },[props.rateLimit])
 
     const reset = () => {
         setSpeed(props.rateLimit)
-        setOption(resetOption())
+        setOption(resetOption(props.rateLimit))
     }
 
     const save = () => {
         OperationSetRateLimit(cfg, {
             id: props.id,
-            speed: speed * retDev(option),
+            speed: speed * retDev(option || ""),
         }).then(() => {
 
-            let newOption = resetOption(speed * retDev(option))
+            let newOption = resetOption(speed * retDev(option || ""))
             setOption(newOption)
             
-            if(retDev > speed) setSpeed(speed / retDev(option))
+            if(retDev(option || "") > speed) setSpeed(speed / retDev(option || ""))
             else setSpeed(speed)
         })
     }

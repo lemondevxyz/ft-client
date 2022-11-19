@@ -170,3 +170,7 @@ export function HumanDate(d : Date) {
 export function FixPath(val : string) : string {
   return "/"+ val.split("/").filter((val : string) => val.length > 0).join("/")
 }
+
+export function GetReadDirKey(pwd : string) : string {
+ return `@"/api/v0/fs/readdir",#Name:"${pwd}",,`
+}

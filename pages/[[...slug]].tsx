@@ -1,7 +1,7 @@
 import Head from "next/head"
 import { useRouter } from "next/router"
 import { useEffect, useState } from "react"
-import { FsReadDir, FsOsFileInfo, FixPath } from "../api/fs"
+import { FsReadDir, FsOsFileInfo, FixPath, PromiseFsReaddir, FsReadDirValue } from "../api/fs"
 import { Browser, BrowserActions, BrowserDirectoryDialog, BrowserNavigators } from "../components/browser"
 import { Tree, TreeMap } from '../components/tree';
 import getConfig from "next/config"
@@ -11,7 +11,7 @@ import EventEmitter from "events"
 import { OperationNew, OperationObject, OperationSetSources } from "../api/operation"
 import { AnimatedOperationSidebar } from "../components/operation"
 import { Dialog } from "../components/dialog"
-import { useSWRConfig } from "swr"
+import useSWR, { useSWRConfig } from "swr"
 import { ObjectMap } from "./_app"
 //import { IconTextButton } from "../components/button"
 
@@ -24,6 +24,8 @@ function FsTree({ ev, setPwd } : FsTreeProps) {
     const { data } = FsReadDir({Name: "/"});
     const [ tree, setTree] = useState<TreeMap>({});
 
+    const cfg = useSWRConfig();
+
     useEffect(() => {
         if(data) {
             let obj = tree
@@ -32,6 +34,28 @@ function FsTree({ ev, setPwd } : FsTreeProps) {
             setTree(obj);
         }
     }, [data]); // eslint-disable-line
+
+    useEffect(() => {
+        const callback = (path : string) => {
+            const path2 = path.split("/").slice(0, -1).join("/");
+
+            const fn = (path : string) => {return (val : FsReadDirValue) => {
+                let copy = JSON.parse(JSON.stringify(tree));
+                copy[path] = val.files
+
+                setTree(copy);
+            }}
+
+            let designatedPath : string | undefined;
+            if(tree[path] !== undefined)
+                PromiseFsReaddir(cfg, { Name: path }).then(fn(path)).catch(() => {})
+            else if(tree[path2] !== undefined)
+                PromiseFsReaddir(cfg, { Name: path2 }).then(fn(path2)).catch(() => {})
+        }
+
+        ev.on("fs-update", callback)
+        return () => { ev.off("fs-update", callback) }
+    })
 
     return <div className="hidden md:block px-4 pt-2 text-md bg-less-dark min-h-screen text-light-head" style={{minWidth: "300px"}}>
         <h1 className="text-3xl font-bold mb-2">Filesystem tree</h1>
@@ -44,6 +68,7 @@ interface FsBrowserProps {
     pwd: string,
     checked: string[],
     setChecked: (val : string[]) => any,
+    ev: EventEmitter
 }
 
 function FsBrowser(val : FsBrowserProps) {
@@ -79,7 +104,7 @@ interface FsViewProps {
 export function FsView({ ev, pwd, setPwd, checked, setChecked } : FsViewProps) {
     return <>
         {FsTree({ setPwd, ev })}
-        {FsBrowser({pwd, setPwd, checked, setChecked})}
+        {FsBrowser({pwd, setPwd, checked, setChecked, ev})}
     </>
 }
 

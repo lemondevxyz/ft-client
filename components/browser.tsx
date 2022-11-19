@@ -1,6 +1,7 @@
+import EventEmitter from "events"
 import { ReactElement, useEffect, useRef, useState, Ref, forwardRef } from "react"
-import { useSWRConfig } from "swr"
-import { DirMode, FixPath, FsMove, FsOsFileInfo, FsReadDir, FsURL, IsDirectory, PromiseFsMkdir, SortByDirectory } from "../api/fs"
+import useSWR, { useSWRConfig } from "swr"
+import { DirMode, FixPath, FsMove, FsOsFileInfo, FsReadDir, FsURL, GetReadDirKey, IsDirectory, PromiseFsMkdir, SortByDirectory } from "../api/fs"
 import { IconTextButton } from "./button"
 import { Dialog } from "./dialog"
 import { FileComponent, FileComponentProps, iconClose, iconFolderAdd, iconFolderArrow } from "./file"
@@ -148,10 +149,24 @@ export function ReadOnlyBrowser(obj : ReadOnlyBrowserProps) {
 
 export interface BrowserProps extends ReadOnlyBrowserProps {
     setFiles: (val : FsOsFileInfo[]) => any,
+    ev?: EventEmitter
 }
 
 export function Browser(obj : BrowserProps) {
     const { data, isLoading, error } = FsReadDir({ Name: obj.pwd as string });
+    const { mutate } = useSWRConfig()
+
+    useEffect(() => {
+        if(obj.ev === undefined) return;
+        if(obj.pwd === undefined) return;
+
+        const callback = () => {
+            mutate(GetReadDirKey(obj!.pwd!));
+        }
+
+        obj.ev.on("fs-update", callback)
+        return () => { obj!.ev!.off("fs-update", callback) };
+    })
 
     useEffect(() => {
         if(isLoading) return
@@ -179,14 +194,14 @@ export function BrowserActions({ pwd, setPwd } : BrowserActionsProps) {
         setPwd(path);
     }
 
-    const { fetcher } = useSWRConfig();
+    const cfg = useSWRConfig();
 
     const mkdir = function() {
         const path = prompt("Enter the directory you want to create or its path");
 
         if(path === null || path === "") return;
 
-        fetcher!(FsURL("mkdir"), {
+        PromiseFsMkdir(cfg, {
             Name: path.at(0) === "/" ? path : pwd+"/"+path
         })
     }
@@ -196,7 +211,9 @@ export function BrowserActions({ pwd, setPwd } : BrowserActionsProps) {
             {IconTextButton({ dark: true, text: "Go to Path", icon: iconFolderArrow, click: goToPath })}
         </div>
         <div className="mt-2 w-full sm:w-1/3 md:w-auto flex justify-center md:block">
-            {IconTextButton({ dark: true, text: "Refresh", click: () => setPwd(pwd), icon: iconRefresh})}
+            {IconTextButton({ dark: true, text: "Refresh", click: () => {
+                cfg.mutate(GetReadDirKey(pwd));
+            }, icon: iconRefresh})}
         </div>
         <div className="mt-2 w-full sm:w-1/3 md:w-auto flex justify-center sm:justify-end md:block">
             {IconTextButton({ dark: true, text: "Create Directory", click: mkdir, icon: iconFolderAdd})}
@@ -234,17 +251,17 @@ export function BrowserNavigators({ pwd, setPwd } : { pwd: string, setPwd: (pwd 
             <BrowserNavigator {...{
                     name: "",
                     icon: iconCopy,
+                    drawSlash: false,
                     click: () => {
-                        if(window.getSelection) {
-                            let selection = window!.getSelection()!
+                        let selection = window!.getSelection()!
 
-                            let range = document.createRange();
-                            range.setStart(myRef.current, 1);
-                            range.setEnd(myRef.current, myRef.current.childNodes.length);
+                        let range = document.createRange();
+                        const elem = (myRef.current as unknown) as Node
+                        range.setStart(elem, 1);
+                        range.setEnd(elem, elem.childNodes.length);
 
-                            selection.removeAllRanges();
-                            selection.addRange(range);
-                        }
+                        selection.removeAllRanges();
+                        selection.addRange(range);
                     },
                     ref: useRef(null),
                 }} />
