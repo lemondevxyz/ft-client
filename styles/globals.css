@@ -13,3 +13,38 @@
 .min-h-1em {
     min-height: 0.25em;
 }
+
+.sidebar-in > div > div:nth-child(2) {
+    animation: leftFadeIn 1000ms ease-in-out forwards;
+}
+
+.sidebar-in > div > div:nth-child(1) {
+    animation: fasterLeftFadeIn 750ms cubic-bezier(.34,.67,.66,.12) forwards;
+}
+
+.sidebar-out > div > div:nth-child(2) {
+    animation: leftFadeOut 750ms cubic-bezier(.34,.67,.66,.12) forwards;
+}
+.sidebar-out > div > div:nth-child(1) {
+    animation: fasterLeftFadeOut 1000ms cubic-bezier(.34,.67,.66,.12) forwards;
+}
+
+@keyframes leftFadeIn {
+    0% { transform: translateX(100%); opacity: 0 }
+    50% { transform: translateX(100%); opacity: 0 }
+    100% { transform: translateX(0%); opacity: 1 }
+}
+
+@keyframes leftFadeOut {
+    0% { transform: translateX(0); opacity: 1 }
+    100% { transform: translateX(100%); opacity: 0 }
+}
+@keyframes fasterLeftFadeIn {
+    0% { transform: translateX(100%); opacity: 0 }
+    100% { transform: translateX(0%); opacity: 1 }
+}
+@keyframes fasterLeftFadeOut {
+    0% { transform: translateX(0%); opacity: 1 }
+    50% { opacity: 1 }
+    100% { transform: translateX(100%); opacity: 0 }
+}

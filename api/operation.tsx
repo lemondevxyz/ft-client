@@ -1,6 +1,6 @@
-import { ApiURL, RequestOptions, returnPromise } from './generic';
+import { ApiURL, returnPromise } from './generic';
 import { FsOsFileInfo } from './fs';
-import { FullConfiguration } from 'swr';
+import { FullConfiguration } from "swr/dist/types";
 
 // errors
 export const ErrDstAlreadyExists = "dst file already exists"
@@ -67,6 +67,7 @@ export interface OperationObject {
     behaivor: OperationBehaivor
     keepBehaivor: boolean
     updateObject: () => any,
+    rateLimit: number
     err?: OperationError
 }
 
@@ -127,3 +128,11 @@ export function OperationSize(cfg : FullConfiguration, val : OperationGenericDat
             .catch((e : Error) => reject(e))
             .then((d : any) => resolv(d as OperationSizeValue))
     })}
+
+export interface OperationRateLimitData {
+    id: string
+    speed: number
+}
+
+export function OperationSetRateLimit(cfg : FullConfiguration, val : OperationRateLimitData) : Promise<Response> {
+    return returnPromise(cfg, OperationURL("set-rate-limit"), val) }

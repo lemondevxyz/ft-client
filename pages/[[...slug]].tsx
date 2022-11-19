@@ -9,7 +9,7 @@ import { FileActions } from "../components/file"
 import { AnimatedComponent } from "../components/animated"
 import EventEmitter from "events"
 import { OperationNew, OperationObject, OperationSetSources } from "../api/operation"
-import { OperationSidebar } from "../components/operation"
+import { AnimatedOperationSidebar } from "../components/operation"
 import { Dialog } from "../components/dialog"
 import { useSWRConfig } from "swr"
 import { ObjectMap } from "./_app"
@@ -54,7 +54,7 @@ function FsBrowser(val : FsBrowserProps) {
     return <div className="ml-4 md:ml-8 mr-2">
         {BrowserActions(val)}
         <div className="mt-2 w-full flex justify-center flex-wrap sm:flex-nowrap sm:justify-start">
-            <div className="shrink">{BrowserNavigators(val)}</div>
+            <div className="shrink flex">{BrowserNavigators(val)}</div>
             <div className="mt-2 w-full sm:w-auto flex justify-center md:justify-end ml-auto shrink-0">
                 <input className="h-9 text-se ml-2 mr-2 pl-4 px-2 h-10 border-0 rounded-3xl outline-none focus:bg-yellow-300 bg-gray-200 transition-colors transition-300ms placeholder-dark-disabled text-black" type="text" placeholder="Search" onChange={(e) => setSearch(e.currentTarget.value)} />
             </div>
@@ -215,6 +215,7 @@ export default function Fs({ ev, ops, id } : { ev : EventEmitter, ops : ObjectMa
 
     const [ pwd, setPwd ] = useState<string>("/"+(router.query.slug as string[] || []).join("/"))
     const [ showOperations, setShowOperations ] = useState(false);
+    const [ showOthers, setShowOthers ] = useState(true);
 
     const pwdSetter = function(val : string) {
         val = FixPath(val)
@@ -229,21 +230,33 @@ export default function Fs({ ev, ops, id } : { ev : EventEmitter, ops : ObjectMa
         <Head>
             <title>ft - filebrowser</title>
         </Head>
-        {FsFileActions({
-            pwd, id, ops, checked, setChecked, ev,
+        <FsFileActions {...{
+            pwd, id, ops, setChecked, ev,
+            checked: !showOthers ? [] : checked,
             setDirDialog: () => null,
-            setCopyPaths: () => null,})}
+            setCopyPaths: () => null,}} />
         <div className="flex relative">
-            {FsView({ev, pwd, setPwd: pwdSetter, checked, setChecked})}
+            <FsView {...{ev, pwd, setPwd: pwdSetter, checked, setChecked}} />
         </div>
-        {OperationSidebar({
+        <AnimatedOperationSidebar {...{
             ev, pwdSetter, ops,
             show: showOperations,
             setShow: setShowOperations,
-        })}
-        <div className="fixed bottom-5 right-5 w-16 h-16 bg-dark items-center justify-center flex text-white rounded-full text-2xl" onClick={() => setShowOperations(true)}>
-            <svg style={{width: '1em', height:'1em', fill: 'currentColor'}}><path d={iconFolderFile} /></svg>
-        </div>
+            setShowOutsider: setShowOthers,
+        }} />
+        <AnimatedComponent {...{
+            showRightAway: true,
+            show: showOthers,
+            className: "fixed bottom-5 right-5 h-16 w-16 bg-dark rounded-full text-2xl",
+            duration: 250,
+            classIn: "animate-fadeIn",
+            classOut: "animate-fadeOut",
+            elem: <div className="w-full h-full items-center justify-center flex text-white" onClick={() => setShowOperations(true)}>
+                <svg style={{width: '1em', height: '1em', fill: 'currentColor'}}>
+                    <path d={iconFolderFile} />
+                </svg>
+            </div>,
+        }} />
 
     </div>
 }

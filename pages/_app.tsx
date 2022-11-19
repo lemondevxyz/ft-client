@@ -29,7 +29,6 @@ export interface PageProps {
 function SWRFetcher(sseId : string, mEtag : Map<string, any>, mData : Map<string, any>) {
   return async (url : string, body : any) => {
     let etag = ""
-    console.log(url)
     if(url.endsWith("readdir"))
       etag = mEtag.get((body as FsGenericData).Name) || ""
 
@@ -296,10 +295,6 @@ function MyApp({ Component }: AppProps<PageProps>) {
             opsSetter(myOps)
           })
         }, 500)
-      }).then(() => {
-        if(data.error === ErrDstAlreadyExists) {
-          ev.emit("operation-file-exist-err", data.id);
-        }
       })
     });
 

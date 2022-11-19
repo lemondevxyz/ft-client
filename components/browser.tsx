@@ -1,4 +1,4 @@
-import { ReactElement, useEffect, useState } from "react"
+import { ReactElement, useEffect, useRef, useState, Ref, forwardRef } from "react"
 import { useSWRConfig } from "swr"
 import { DirMode, FixPath, FsMove, FsOsFileInfo, FsReadDir, FsURL, IsDirectory, PromiseFsMkdir, SortByDirectory } from "../api/fs"
 import { IconTextButton } from "./button"
@@ -126,7 +126,7 @@ export function ReadOnlyBrowser(obj : ReadOnlyBrowserProps) {
         if(obj.checked.length == obj.files.length &&
             obj.checked.length > 0) setAll(true)
         else setAll(false);
-    }, [obj.checked]) // eslint:disable-rule
+    }, [obj.checked]) // eslint:disable-line
 
     const header = BrowserHeader({
         all: obj.checked ? all : undefined,
@@ -205,14 +205,51 @@ export function BrowserActions({ pwd, setPwd } : BrowserActionsProps) {
 
 }
 
+export function BrowserNavigator({ name, icon, click, drawSlash } : { name?: string, icon?: string, click: () => any, drawSlash: boolean }) {
+    const elem = <span>{drawSlash && <span style={{width: '0px', height: '0px', opacity: '0', display: 'inline-block'}}>/</span>}{name}</span>
+
+    return <button className="bg-gray-200 border-2 py-1 px-4 mt-1 mr-1 rounded outline-0"
+            onClick={() => click()}
+            key={name}>
+    {(icon && <svg viewBox="0 0 24 24" style={{width: "1em", height: "1em"}}><path d={icon} /></svg> || elem)}
+    </button>
+}
+
+const iconCopy = "M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"
+
 export function BrowserNavigators({ pwd, setPwd } : { pwd: string, setPwd: (pwd : string) => void }) {
+    const myRef = useRef(null);
+
+    const elem = ["/"].concat(pwd.split("/")).filter((val : string) => val.length > 0).map((val : string, i : number, arr : string[]) => {
+        return <BrowserNavigator {...{
+                name: val,
+                click: () => setPwd(arr.slice(0, i+1).join("/")),
+                drawSlash: i > 1,
+            }}
+            key={val+i.toString()} />
+    })
+
     return (
-        <>
-            {["/"].concat(pwd.split("/")).filter((val : string) => val.length > 0).map((val : string, i : number, arr : string[]) =>
-                <button className="bg-gray-200 border-2 py-1 px-4 mt-1 mr-1 rounded outline-0" onClick={() => setPwd(FixPath("/"+arr.slice(0, i+1).join("/")))} key={val+i.toString()}>
-                    {val}
-                </button>)}
-        </>
+        <div className="flex items-flex-start" ref={myRef}>
+            <BrowserNavigator {...{
+                    name: "",
+                    icon: iconCopy,
+                    click: () => {
+                        if(window.getSelection) {
+                            let selection = window!.getSelection()!
+
+                            let range = document.createRange();
+                            range.setStart(myRef.current, 1);
+                            range.setEnd(myRef.current, myRef.current.childNodes.length);
+
+                            selection.removeAllRanges();
+                            selection.addRange(range);
+                        }
+                    },
+                    ref: useRef(null),
+                }} />
+            {elem}
+        </div>
     );
 }
 
@@ -227,7 +264,7 @@ export interface BrowserDialogProps {
     filter?: (val : FsOsFileInfo) => boolean
 }
 
-const iconMark = "M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z";
+export const iconMark = "M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z";
 export function BrowserDialog({ show, setPwd, pwd, base, close, done, title, filter } : BrowserDialogProps) {
     const [ files, setFiles ] = useState<FsOsFileInfo[]>([])
 
