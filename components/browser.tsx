@@ -66,6 +66,7 @@ function BrowserBodyParentDirectory(val : BrowserBodyProps) {
 }
 
 function BrowserBodyFile(val : BrowserBodyProps, file : FsOsFileInfo) {
+    file.absPath = val.pwd + "/" + file.name;
     const obj : FileComponentProps = {
         f: file,
         onClick: (path: string) => {
@@ -140,7 +141,7 @@ export function ReadOnlyBrowser(obj : ReadOnlyBrowserProps) {
         drawDots: base != obj.pwd,
         onClick: (val : string) => {
             if(obj && obj.setPwd)
-                obj.setPwd(val)
+                obj.setPwd(obj.pwd + "/" + val)
         }
     }))
 

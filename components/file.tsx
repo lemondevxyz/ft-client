@@ -117,7 +117,7 @@ export function FileComponent(val: FileComponentProps) {
     const elem = FileComponentFilename({
         name: val.f.name,
         dir: dir,
-        absPath: val.f.path,
+        absPath: val.f.absPath,
         onClick: val.onClick,
         onContextMenu: val.onContextMenu,
     })
