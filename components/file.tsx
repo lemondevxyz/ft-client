@@ -60,7 +60,7 @@ function FileComponentFilename(val : FileComponentFilenameProps) {
 
     let elem = <p>{val.name}</p>
     if(showLink)
-        elem = <a className={`flex items-center w-full select-none cursor-pointer`} rel="noreferrer" target="_blank" href={`http://${globalHost}/files${val.absPath}`}>{elem}</a>
+        elem = <a className={`flex items-center w-full select-none cursor-pointer`} rel="noreferrer" target="_blank" href={`${globalHost}/files${val.absPath}`}>{elem}</a>
 
     return <td className={`flex items-center my-2 w-full select-none ${val.dir && "cursor-pointer"}`}
         onClick={ onclick }

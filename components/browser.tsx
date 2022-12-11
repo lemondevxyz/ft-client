@@ -70,7 +70,7 @@ function BrowserBodyFile(val : BrowserBodyProps, file : FsOsFileInfo) {
     const obj : FileComponentProps = {
         f: file,
         onClick: (path: string) => {
-            if(val && val.setPwd) val.setPwd(path)
+            if(val && val.setPwd) val.setPwd(val.pwd+"/"+file.name)
         },
         onContextMenu: (path: string) => {
             if(!val.setRename) return;
