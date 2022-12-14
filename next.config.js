@@ -4,9 +4,11 @@ const nextConfig = {
   swcMinify: true,
   publicRuntimeConfig: {
     // Change this if you have a different server
-    api_host: 'http://localhost:8080',
-    base: "/",
+    api_host: '',
+    base: "/client",
   },
+  basePath: "/client",
+  assetPrefix: "/static",
 }
 
 module.exports = nextConfig
